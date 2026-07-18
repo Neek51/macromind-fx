@@ -93,6 +93,7 @@ macromind-fx/
 │   ├── position-size-calculator.tsx ← Position Size Calculator component
 │   ├── market-sessions-clock.tsx ← Market Sessions Clock component
 │   ├── correlation-matrix.tsx  ← Correlation Matrix component (with preset fallbacks)
+│   ├── confluence-synthesizer.tsx ← Confluence Synthesizer component (4 lanes + verdict plan)
 │   ├── tradingview-chart.tsx   ← TradingView Advanced Chart widget (free embed, pair selector, dark mode, safe cleanup)
 │   ├── theme-provider.tsx      ← React Context for dark/light mode
 │   ├── data.ts                 ← Fallback static data (assets, news, events, trades)
@@ -329,6 +330,7 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **Purity & React 19 Hydration Compliance:** Replaced all impure functions during render (like `Math.random` in keys and raw `Date.now` checks) with React-safe mappings and state/effect hooks. Cleaned up all ESLint warnings (switched to next/image unoptimized flags) and LCP issues.
 - **Fx Ultimate Pine strategy compiler & Telegram dispatcher:** Ported the `Fx_Ultimate.pine` (v6) Pine Script indicator rules (EMA crossovers, RSI pullbacks, Scoring matrix, dynamic pivot swing detection, session breakouts, and ATR ranges) into TypeScript, creating a new `/api/strategy-signals` route.
 - **Telegram Bot Configuration Panel:** Created a new tabbed UI inside `/alerts` page to configure Telegram bots, send test messages, save configurations in `localStorage`, and display a strategy HUD containing live calculated indicator values and alert triggers.
+- **Confluence Synthesizer (4-Lane Verdict Engine):** Implemented a custom analyzer widget (`src/app/confluence-synthesizer.tsx`) on the home dashboard that combines Technical, Flow, Narrative, and Macro lanes into an aligned trade plan with stop-loss and take-profit targets (1:2 R:R). Removed the Live TradingView Chart card and expanded the Synthesizer to render at full-width.
 
 ### 2.9 TradingView Logo URLs
 

@@ -36,7 +36,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>(fallbackEvents.map(e => ({
     title: e.event,
     country: e.country,
-    date: "",
+    date: e.date,
     impact: e.impact,
     forecast: e.forecast,
     previous: e.previous,

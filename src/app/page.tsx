@@ -8,24 +8,21 @@ import { CurrencyStrengthMeter } from "./currency-strength-meter";
 import { PositionSizeCalculator } from "./position-size-calculator";
 import { MarketSessionsClock } from "./market-sessions-clock";
 import { CorrelationMatrix } from "./correlation-matrix";
-import { TradingViewChart } from "./tradingview-chart";
-import { useTheme } from "./theme-provider";
+import { ConfluenceSynthesizer } from "./confluence-synthesizer";
 import type { LiveAsset, NewsItem, CalendarEvent, CorrelationData } from "./types";
 
 export default function Home() {
-  const { darkMode } = useTheme();
   const [liveData, setLiveData] = useState<LiveAsset[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(fallbackEvents.map(e => ({
-    title: e.event, country: e.country, date: "", impact: e.impact, forecast: e.forecast, previous: e.previous,
+    title: e.event, country: e.country, date: e.date, impact: e.impact, forecast: e.forecast, previous: e.previous,
   })));
   const [calendarLoading, setCalendarLoading] = useState(true);
   const [correlationData, setCorrelationData] = useState<CorrelationData | null>(null);
   const [correlationLoading, setCorrelationLoading] = useState(true);
-  const [chartSymbol, setChartSymbol] = useState("XAU/USD");
   const [currentTime, setCurrentTime] = useState<number | null>(null);
 
   const fetchPrices = useCallback(async () => {
@@ -143,8 +140,7 @@ export default function Home() {
   const riskNews = news.slice(0, 3);
 
   const upcomingEvents = calendarEvents
-    .filter(e => e.impact === "High" || e.impact === "Medium")
-    .slice(0, 4);
+    .filter(e => e.impact === "High" || e.impact === "Medium");
 
   const marketAssets = displayAssets ?? fallbackAssets.map((a) => ({
     symbol: a.symbol,
@@ -470,32 +466,57 @@ export default function Home() {
         </Card>
       </section>
 
-      {/* Chart + AI Risk Score */}
+      {/* Confluence Synthesizer (Full Width) */}
+      <section>
+        <ConfluenceSynthesizer
+          liveData={liveData}
+          news={news}
+          calendarEvents={calendarEvents}
+          macroBiases={macroBiases}
+        />
+      </section>
+
+      {/* Economic Calendar preview + AI Risk Score */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
         <Card className="animate-fade-up-delay-3">
-          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{chartSymbol}</p>
-              <h2 className="text-xl font-bold">Live Chart</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">This week</p>
+              <h2 className="text-xl font-bold">Economic Calendar</h2>
             </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={chartSymbol}
-                onChange={(e) => setChartSymbol(e.target.value)}
-                className="rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-3 py-1.5 text-sm font-medium outline-none transition-colors focus:border-[var(--accent)]"
-              >
-                {Object.keys(nameMap).map((sym) => (
-                  <option key={sym} value={sym}>{sym}</option>
-                ))}
-              </select>
-            </div>
+            <span className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-50/10">
+              {highImpactEvents} high impact
+            </span>
           </div>
-          <div className="mt-4">
-            <TradingViewChart symbol={chartSymbol} darkMode={darkMode} />
+          <div className="mt-5 space-y-3 max-h-[360px] overflow-y-auto pr-1 scrollbar-thin">
+            {calendarLoading ? (
+              [1, 2, 3, 4].map(i => (
+                <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" />
+              ))
+            ) : upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event, i) => (
+                <div key={`${event.title}-${i}`} className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-slate-50/40 p-4 transition-colors duration-200 hover:bg-slate-100/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]">
+                  <div>
+                    <p className="text-sm font-semibold">{event.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {event.date ? new Date(event.date).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {" • Forecast: "}{event.forecast || "—"}{" • Previous: "}{event.previous || "—"}
+                    </p>
+                  </div>
+                  <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                    event.impact === "High" ? "bg-red-50 text-red-600 dark:bg-red-50/10" : "bg-amber-50 text-amber-700 dark:bg-amber-50/10"
+                  }`}>
+                    {event.impact}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-400">No upcoming events</p>
+            )}
           </div>
         </Card>
 
-        <Card className="animate-fade-up-delay-2 flex flex-col">
+        <Card className="animate-fade-up-delay-4 flex flex-col">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Risk Score</p>
@@ -541,69 +562,6 @@ export default function Home() {
             ) : (
               <p className="text-sm text-slate-400">No live news available</p>
             )}
-          </div>
-        </Card>
-      </section>
-
-      {/* Economic Calendar preview */}
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
-        <Card className="animate-fade-up-delay-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">This week</p>
-              <h2 className="text-xl font-bold">Economic Calendar</h2>
-            </div>
-            <span className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-50/10">
-              {highImpactEvents} high impact
-            </span>
-          </div>
-          <div className="mt-5 space-y-3">
-            {calendarLoading ? (
-              [1, 2, 3, 4].map(i => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" />
-              ))
-            ) : upcomingEvents.length > 0 ? (
-              upcomingEvents.map((event, i) => (
-                <div key={`${event.title}-${i}`} className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-slate-50/40 p-4 transition-colors duration-200 hover:bg-slate-100/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.04]">
-                  <div>
-                    <p className="text-sm font-semibold">{event.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {event.date ? new Date(event.date).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
-                      {" • Forecast: "}{event.forecast || "—"}{" • Previous: "}{event.previous || "—"}
-                    </p>
-                  </div>
-                  <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
-                    event.impact === "High" ? "bg-red-50 text-red-600 dark:bg-red-50/10" : "bg-amber-50 text-amber-700 dark:bg-amber-50/10"
-                  }`}>
-                    {event.impact}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-400">No upcoming events</p>
-            )}
-          </div>
-        </Card>
-
-        <Card className="animate-fade-up-delay-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick stats</p>
-              <h2 className="text-xl font-bold">Market pulse</h2>
-            </div>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            {[
-              { label: "Volatility", value: `${volatileAssets} assets >0.5%` },
-              { label: "Risk events", value: `${highImpactEvents} this week` },
-              { label: "News items", value: `${news.length} recent` },
-              { label: "Data freshness", value: lastUpdated || "Loading..." },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl border border-[var(--card-border)] bg-slate-50/40 p-4 dark:bg-white/[0.02]">
-                <p className="text-xs text-slate-400">{stat.label}</p>
-                <p className="mt-1 text-sm font-bold">{stat.value}</p>
-              </div>
-            ))}
           </div>
         </Card>
       </section>

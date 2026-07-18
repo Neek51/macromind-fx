@@ -119,10 +119,10 @@ export const newsItems = [
 ];
 
 export const events = [
-  { time: "18:00", event: "US CPI", country: "USD", impact: "High", forecast: "3.2%", previous: "3.1%" },
-  { time: "20:30", event: "Fed Chair Speech", country: "USD", impact: "High", forecast: "-", previous: "-" },
-  { time: "Tomorrow", event: "Jobless Claims", country: "USD", impact: "Medium", forecast: "225K", previous: "229K" },
-  { time: "Friday", event: "UK GDP", country: "GBP", impact: "Medium", forecast: "0.2%", previous: "0.1%" },
+  { date: "2026-07-18T18:00:00.000Z", event: "US CPI", country: "USD", impact: "High", forecast: "3.2%", previous: "3.1%" },
+  { date: "2026-07-18T20:30:00.000Z", event: "Fed Chair Speech", country: "USD", impact: "High", forecast: "-", previous: "-" },
+  { date: "2026-07-19T14:30:00.000Z", event: "Jobless Claims", country: "USD", impact: "Medium", forecast: "225K", previous: "229K" },
+  { date: "2026-07-21T09:00:00.000Z", event: "UK GDP", country: "GBP", impact: "Medium", forecast: "0.2%", previous: "0.1%" },
 ];
 
 export const trades = [
