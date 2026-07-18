@@ -141,7 +141,7 @@ export function CorrelationMatrix({
         </div>
       </div>
 
-      <div className="grid gap-4 p-5 lg:grid-cols-[1fr_260px]">
+      <div className="p-5 space-y-6">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-separate border-spacing-1 text-center text-xs">
             <thead>
@@ -184,24 +184,30 @@ export function CorrelationMatrix({
           </table>
         </div>
 
-        <div className="space-y-3">
-          <div className="rounded-xl border border-[var(--card-border)] bg-slate-50/50 p-4 dark:bg-white/[0.02]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Highest same-direction risk</p>
-            <p className="mt-1 text-lg font-bold">{strongestPositive.a.symbol} + {strongestPositive.b.symbol}</p>
-            <p className="mt-1 text-sm font-semibold text-emerald-600">{strongestPositive.value.toFixed(2)} correlation</p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">Taking both in the same direction can double your exposure.</p>
+        {/* Bottom Callout Cards (Confluence Insights) */}
+        <div className="border-t border-[var(--card-border)] pt-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-xl border border-[var(--card-border)] bg-slate-50/50 p-4 dark:bg-white/[0.02]">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Highest same-direction risk</p>
+              <p className="mt-1.5 text-lg font-bold">{strongestPositive.a.symbol} + {strongestPositive.b.symbol}</p>
+              <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">{strongestPositive.value.toFixed(2)} correlation</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">Taking both in the same direction can double your exposure.</p>
+            </div>
+            <div className="rounded-xl border border-[var(--card-border)] bg-slate-50/50 p-4 dark:bg-white/[0.02]">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Strongest hedge relationship</p>
+              <p className="mt-1.5 text-lg font-bold">{strongestNegative.a.symbol} vs {strongestNegative.b.symbol}</p>
+              <p className="mt-1 text-sm font-bold text-red-500 dark:text-red-400">{strongestNegative.value.toFixed(2)} correlation</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">These often move opposite, useful for spotting conflicting positions.</p>
+            </div>
+            <div className="flex flex-col justify-center rounded-xl border border-dashed border-[var(--card-border)] bg-slate-50/20 p-4 dark:bg-white/[0.01]">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Risk Overlay Insights</h4>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                {correlationData
+                  ? `Live Pearson correlation calculated from ${correlationData.timeframe} of daily closing prices. Cross-reference before saving setups.`
+                  : "Preset correlation estimates are shown as reference values until Yahoo Finance historical data finishes loading."}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-[var(--card-border)] bg-slate-50/50 p-4 dark:bg-white/[0.02]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Strongest hedge relationship</p>
-            <p className="mt-1 text-lg font-bold">{strongestNegative.a.symbol} vs {strongestNegative.b.symbol}</p>
-            <p className="mt-1 text-sm font-semibold text-red-500">{strongestNegative.value.toFixed(2)} correlation</p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">These often move opposite, useful for spotting conflicting positions.</p>
-          </div>
-          <p className="text-xs leading-5 text-slate-400">
-            {correlationData
-              ? `Live Pearson correlation from ${correlationData.timeframe} of ${correlationData.interval} closes. Use it as a risk guide, not financial advice.`
-              : "Preset fallback shown until live historical data is available. Use it as a risk guide, not financial advice."}
-          </p>
         </div>
       </div>
     </>

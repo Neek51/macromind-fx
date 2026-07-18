@@ -1,0 +1,233 @@
+//@version=6
+strategy(title="Fx Ultimate", overlay=true, initial_capital=10000, default_qty_type=strategy.percent_of_equity, default_qty_value=10, commission_value=0.04, commission_type=strategy.commission.percent, pyramiding=1, slippage=2)
+
+// === MODE SELECTOR ===
+mode = input.string("Simple", "Mode", options=["Simple", "Scoring", "Low TF", "Session"])
+
+// === COMMON INDICATORS ===
+ema9 = ta.ema(close, 9)
+ema21 = ta.ema(close, 21)
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+[dp, dm, adx] = ta.dmi(14, 14)
+rsi = ta.rsi(close, 14)
+[macdL, macdS, macdH] = ta.macd(close, 12, 26, 9)
+atr = ta.atr(14)
+
+// === SIMPLE & SCORING INPUTS ===
+tpMul = input.float(2.5, "TP Multiplier (ATR)", step=0.1, group="Simple / Scoring")
+slMul = input.float(1.0, "SL Multiplier (ATR)", step=0.1, group="Simple / Scoring")
+adxTh = input.int(20, "Min ADX (Scoring)", group="Scoring Only")
+useSess = input.bool(false, "Session Filter", group="Scoring Only")
+showZones = input.bool(true, "Show Zone Markers", group="Scoring Only")
+
+// === LOW TF INPUTS ===
+tfTpMul = input.float(1.2, "TP Multiplier (ATR)", step=0.1, group="Low TF")
+tfSlMul = input.float(0.6, "SL Multiplier (ATR)", step=0.1, group="Low TF")
+
+// === SESSION INPUTS ===
+tpPips = input.int(150, "Target (pips)", step=10, group="Session Trader")
+slPips = input.int(60, "Stop Loss (pips)", step=5, group="Session Trader")
+trailAct = input.int(50, "Trailing Start (pips)", step=10, group="Session Trader")
+trailStep = input.int(30, "Trailing Step (pips)", step=5, group="Session Trader")
+rangeHours = input.int(2, "Range Hours", minval=1, maxval=4, group="Session Trader")
+tradeLondon = input.bool(true, "Trade London (7-9 UTC)", group="Session Trader")
+tradeNY = input.bool(true, "Trade NY (13-15 UTC)", group="Session Trader")
+tradeAsia = input.bool(false, "Trade Asia (0-2 UTC)", group="Session Trader")
+
+// ============ SIMPLE MODE ============
+uptrend = close > ema200
+dntrend = close < ema200
+rsiCrossUp = ta.crossover(rsi, 30)
+rsiCrossDn = ta.crossunder(rsi, 70)
+simpleLong  = uptrend and rsiCrossUp
+simpleShort = dntrend and rsiCrossDn
+
+// ============ SCORING MODE ============
+bull = ema9 > ema21 and ema21 > ema50
+bear = ema9 < ema21 and ema21 < ema50
+htfOk = close > ema200
+
+pH = ta.pivothigh(10, 10)
+pL = ta.pivotlow(10, 10)
+
+var zH = 0.0
+var zL = 0.0
+var zT = 0
+var zA = false
+
+if not na(pH)
+    zH := pH
+    zL := pH - (atr * 1.2)
+    zT := 1
+    zA := true
+
+if not na(pL)
+    zH := pL + (atr * 1.2)
+    zL := pL
+    zT := -1
+    zA := true
+
+nearSup = zT == 1 and close >= zL - (atr * 0.5) and close <= zH + (atr * 0.5) and zA
+nearDem = zT == -1 and close >= zL - (atr * 0.5) and close <= zH + (atr * 0.5) and zA
+
+rsiBull = rsi < 35 and ta.rising(rsi, 2)
+rsiBear = rsi > 65 and ta.falling(rsi, 2)
+macdUp = ta.crossover(macdL, macdS)
+macdDn = ta.crossunder(macdL, macdS)
+
+isLon = hour >= 7 and hour < 16
+isNY = hour >= 13 or hour < 2
+sessOk = useSess ? (isLon or isNY) : true
+
+scL = 0
+scS = 0
+
+if bull and htfOk and adx > adxTh
+    scL := scL + 2
+if bear and not htfOk and adx > adxTh
+    scS := scS + 2
+if nearDem
+    scL := scL + 2
+if nearSup
+    scS := scS + 2
+if rsiBull
+    scL := scL + 1
+if rsiBear
+    scS := scS + 1
+if macdUp
+    scL := scL + 1
+if macdDn
+    scS := scS + 1
+
+scoreLong  = scL >= 3 and sessOk
+scoreShort = scS >= 3 and sessOk
+
+// ============ LOW TF MODE ============
+ltfBull = ema9 > ema21 and close > ema21
+ltfBear = ema9 < ema21 and close < ema21
+ltfLong  = ltfBull and (rsi < 35 or ta.crossover(macdL, macdS)) and low > ema50
+ltfShort = ltfBear and (rsi > 65 or ta.crossunder(macdL, macdS)) and high < ema50
+
+// ============ SESSION MODE ============
+isLondon = hour == 7 or hour == 8
+isNYs = hour == 13 or hour == 14
+isAsia = hour == 0 or hour == 1
+isActive = (tradeLondon and isLondon) or (tradeNY and isNYs) or (tradeAsia and isAsia)
+
+var float sH = na
+var float sLo = na
+var int sBar = na
+var string sName = ""
+
+if (hour == 7 and minute == 0) and tradeLondon
+    sH := na
+    sLo := na
+    sBar := bar_index
+    sName := "London"
+
+if (hour == 13 and minute == 0) and tradeNY
+    sH := na
+    sLo := na
+    sBar := bar_index
+    sName := "NY"
+
+if (hour == 0 and minute == 0) and tradeAsia
+    sH := na
+    sLo := na
+    sBar := bar_index
+    sName := "Asia"
+
+rB = rangeHours * 4
+rReady = not na(sH) and not na(sLo) and not na(sBar) and (bar_index - sBar) >= rB
+
+if not na(sBar) and not rReady
+    if na(sH) or high > sH
+        sH := high
+    if na(sLo) or low < sLo
+        sLo := low
+
+bHigh = ta.crossover(close, sH)
+bLow = ta.crossunder(close, sLo)
+ps = syminfo.mintick * 10
+
+inSess = isActive or (not na(sBar) and bar_index - sBar < rB + 10)
+eL = rReady and bHigh and rsi > 50 and inSess
+eS = rReady and bLow and rsi < 50 and inSess
+
+// ============ MODE SELECTION ============
+goL = mode == "Simple" ? simpleLong :
+      mode == "Scoring" ? scoreLong :
+      mode == "Low TF" ? ltfLong :
+      mode == "Session" ? eL : false
+
+goS = mode == "Simple" ? simpleShort :
+      mode == "Scoring" ? scoreShort :
+      mode == "Low TF" ? ltfShort :
+      mode == "Session" ? eS : false
+
+// ============ EXECUTION ============
+usePips = mode == "Session"
+sessSlL = close - (slPips * ps)
+sessSlS = close + (slPips * ps)
+sessTpL = close + (tpPips * ps)
+sessTpS = close - (tpPips * ps)
+sessTlL = close - (trailStep * ps)
+sessTlS = close + (trailStep * ps)
+
+atrSlL = close - (atr * (mode == "Low TF" ? tfSlMul : slMul))
+atrSlS = close + (atr * (mode == "Low TF" ? tfSlMul : slMul))
+atrTpL = close + (atr * (mode == "Low TF" ? tfTpMul : tpMul))
+atrTpS = close - (atr * (mode == "Low TF" ? tfTpMul : tpMul))
+
+useSlL = usePips ? sessSlL : atrSlL
+useSlS = usePips ? sessSlS : atrSlS
+useTpL = usePips ? sessTpL : atrTpL
+useTpS = usePips ? sessTpS : atrTpS
+
+if goL and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+    strategy.exit("XL", "L", stop=useSlL, limit=useTpL)
+
+if goS and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+    strategy.exit("XS", "S", stop=useSlS, limit=useTpS)
+
+if mode == "Session"
+    if strategy.position_size > 0 and (high - strategy.position_avg_price) / ps >= trailAct
+        strategy.exit("TL", "L", stop=sessTlL)
+    if strategy.position_size < 0 and (strategy.position_avg_price - low) / ps >= trailAct
+        strategy.exit("TS", "S", stop=sessTlS)
+
+// ============ VISUALS ============
+plotshape(goL, style=shape.labelup, location=location.belowbar, color=color.new(color.green, 40), size=size.large, text="BUY")
+plotshape(goS, style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 40), size=size.large, text="SELL")
+
+plotshape(showZones and nearDem and mode == "Scoring", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 50), size=size.tiny)
+plotshape(showZones and nearSup and mode == "Scoring", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 50), size=size.tiny)
+
+bgcolor(mode == "Session" ? (isLondon ? color.new(color.blue, 85) : isNYs ? color.new(color.orange, 85) : na) : na)
+plot(mode == "Session" and rReady ? sH : na, "Sess High", color.new(color.blue, 60), 1, plot.style_line)
+plot(mode == "Session" and rReady ? sLo : na, "Sess Low", color.new(color.blue, 30), 1, plot.style_line)
+
+// ============ INFO TABLE ============
+if barstate.islast
+    var t = table.new(position.top_right, 2, 7, color.new(color.black, 80), border_color=color.gray)
+    table.cell(t, 0, 0, "Fx " + mode, text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 1, "Mode: " + mode, text_color=color.yellow, text_size=size.small)
+    if mode == "Simple"
+        table.cell(t, 0, 2, "Trend: " + (uptrend ? "UP" : "DOWN"), text_color=uptrend ? color.green : color.red, text_size=size.small)
+    if mode == "Scoring"
+        table.cell(t, 0, 2, "Score L/S: " + str.tostring(scL) + "/" + str.tostring(scS), text_color=scL >= 2 ? color.green : scS >= 2 ? color.red : color.gray, text_size=size.small)
+    if mode == "Low TF"
+        table.cell(t, 0, 2, "Trend: " + (ltfBull ? "UP" : ltfBear ? "DOWN" : "-"), text_color=ltfBull ? color.green : ltfBear ? color.red : color.gray, text_size=size.small)
+    if mode == "Session"
+        table.cell(t, 0, 2, "Session: " + sName, text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 3, "RSI: " + str.tostring(rsi, "#"), text_color=rsi > 65 ? color.red : rsi < 35 ? color.green : color.gray, text_size=size.small)
+    table.cell(t, 0, 4, mode == "Scoring" ? "ADX: " + str.tostring(adx, "#") : "", text_color=adx > 20 ? color.green : color.gray, text_size=size.small)
+    table.cell(t, 0, 5, "Trades: " + str.tostring(strategy.closedtrades), text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 6, "Net: $" + str.tostring(strategy.netprofit, "#.##"), text_color=strategy.netprofit > 0 ? color.green : color.red, text_size=size.small)
+
+// ============ ALERTS ============
+alertcondition(goL, "BUY", "{{ticker}}|BUY")
+alertcondition(goS, "SELL", "{{ticker}}|SELL")

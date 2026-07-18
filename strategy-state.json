@@ -1,0 +1,27 @@
+{
+  "lastCheckedTimestamp": 1784318400,
+  "lastTriggeredTime": 0,
+  "lastSignal": "NONE",
+  "alerts": {
+    "strategy-1784370855513-lk1p": {
+      "lastCheckedTimestamp": 1784318400,
+      "lastTriggeredTime": 0,
+      "lastSignal": "NONE"
+    },
+    "strategy-1784370906709-hpct": {
+      "lastCheckedTimestamp": 1784318400,
+      "lastTriggeredTime": 0,
+      "lastSignal": "NONE"
+    },
+    "strategy-1784371506022-igqj": {
+      "lastCheckedTimestamp": 1784318400,
+      "lastTriggeredTime": 0,
+      "lastSignal": "NONE"
+    },
+    "strategy-1784371511373-gx5l": {
+      "lastCheckedTimestamp": 1784318400,
+      "lastTriggeredTime": 0,
+      "lastSignal": "NONE"
+    }
+  }
+}

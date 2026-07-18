@@ -1,0 +1,34 @@
+{
+  "botToken": "8772422685:AAEgB3E2KVcTEj60wZT_eHp0frHzGxJwq_0",
+  "chatId": "1736235887",
+  "alerts": [
+    {
+      "id": "strategy-1784370855513-lk1p",
+      "symbol": "XAU/USD",
+      "mode": "Simple",
+      "timeframe": "1h",
+      "active": true
+    },
+    {
+      "id": "strategy-1784370906709-hpct",
+      "symbol": "XAU/USD",
+      "mode": "Scoring",
+      "timeframe": "1h",
+      "active": true
+    },
+    {
+      "id": "strategy-1784371506022-igqj",
+      "symbol": "XAU/USD",
+      "mode": "Low TF",
+      "timeframe": "1h",
+      "active": true
+    },
+    {
+      "id": "strategy-1784371511373-gx5l",
+      "symbol": "XAU/USD",
+      "mode": "Session",
+      "timeframe": "1h",
+      "active": true
+    }
+  ]
+}

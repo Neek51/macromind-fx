@@ -1,6 +1,7 @@
 "use client";
 
 import type { LiveAsset } from "./types";
+import Image from "next/image";
 
 const CURRENCY_FLAGS: Record<string, string> = {
   USD: "https://s3-symbol-logo.tradingview.com/country/US.svg",
@@ -59,11 +60,12 @@ export function CurrencyStrengthMeter({ assets, loading }: { assets: LiveAsset[]
           const barWidth = Math.abs(c.normalized) * 100;
           return (
             <div key={c.currency} className="flex items-center gap-3">
-              <img
+              <Image
                 src={c.flag}
                 alt={c.currency}
                 width={24}
                 height={24}
+                unoptimized
                 className="shrink-0 rounded-full"
                 style={{ width: 24, height: 24, minWidth: 24 }}
               />

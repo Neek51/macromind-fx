@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 18, 2026 (fixed Pattern Detection Yahoo symbols + AI provider fallback; added AI Daily Market Outlook, AI Pattern Detection, Smart Price Alerts; fixed TradingView navigation crash; fixed Turbopack root config)
+**Last Updated:** July 18, 2026 (added persistent sidebar layout, resolved dark/light theme flash, added dynamic Macro Bias Matrix and high-impact Economic Event alerts on the Dashboard, added open trade correlation warnings in the Trade Journal, optimized outlook API with in-memory routing, and resolved all ESLint compiler warnings and errors)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -107,7 +107,9 @@ macromind-fx/
 │   │   ├── calendar/route.ts   ← Economic calendar (nfs.faireconomy.media free JSON)
 │   │   ├── journal-review/route.ts ← AI trade review (Groq API → grade, suggestions)
 │   │   ├── outlook/route.ts    ← AI Daily Market Outlook (AgentRouter/OpenAI-compatible → daily summary, key levels, opportunities, risks)
-│   │   └── patterns/route.ts   ← AI Pattern Detection (algorithmic swing detection + AgentRouter educational notes)
+│   │   ├── patterns/route.ts   ← AI Pattern Detection (algorithmic swing detection + AgentRouter educational notes)
+│   │   └── strategy-signals/route.ts ← Fx Ultimate Pine strategy compiler & Telegram dispatcher
+│   ├── htf/ (outlook, patterns, alerts etc.)
 │   ├── outlook/
 │   │   ├── layout.tsx          ← Metadata for Outlook page
 │   │   ├── page.tsx            ← AI Daily Market Outlook page
@@ -120,7 +122,7 @@ macromind-fx/
 │   │   └── error.tsx           ← Patterns error boundary
 │   ├── alerts/
 │   │   ├── layout.tsx          ← Metadata for Alerts page
-│   │   ├── page.tsx            ← Smart Price Alerts page (localStorage + browser notifications)
+│   │   ├── page.tsx            ← Smart Price & Strategy Alerts page (localStorage + Telegram dispatcher)
 │   │   ├── loading.tsx         ← Alerts loading skeleton
 │   │   └── error.tsx           ← Alerts error boundary
 │   ├── news/
@@ -292,7 +294,7 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 
 **Position Size Calculator** (`position-size-calculator.tsx`): Interactive risk management tool. Inputs: pair selector (all 10 assets), account size ($), risk %, entry price (with "use live" button to auto-fill from current market price), stop loss price. Outputs: position size (lots + units), risk amount ($), stop distance (pips), pip value per lot ($), potential loss ($). Uses pair-specific pip sizes (0.0001 for most forex, 0.01 for JPY pairs and metals, $1 for crypto) and contract sizes (100,000 for forex, 100 oz for gold, 5,000 oz for silver, 1 unit for crypto).
 
-**Market Sessions Clock** (`market-sessions-clock.tsx`): Live trading session tracker. Shows Tokyo (00:00–09:00 UTC), London (08:00–17:00 UTC), and New York (13:00–22:00 UTC) sessions with open/closed status, countdown to next open/close, and a 24-hour UTC timeline bar with colored session zones and a current-time marker. Updates every 60 seconds.
+**Market Sessions Clock** (`market-sessions-clock.tsx`): Live trading session tracker. Shows Tokyo (00:00–09:00 UTC), London (08:00–17:00 UTC), and New York (13:00–22:00 UTC) sessions with open/closed status, countdown to next open/close, and a 24-hour UTC timeline bar with colored session zones and a current-time marker. Updates every 60 seconds. Also includes **Institutional Session Profiles** (Tokyo Accumulation, London Manipulation, New York Distribution) explaining how pro traders monitor high/low sweeps and liquidity during overlaps.
 
 **TradingView Chart (`tradingview-chart.tsx`):** Free embedded TradingView Advanced Chart widget. Replaces the old basic bar chart. Features: candlestick chart with 15-minute default interval, RSI + Moving Average studies auto-loaded, side toolbar enabled, dark/light theme synced with dashboard, pair selector dropdown for all 10 assets. Symbol mapping: OANDA:XAUUSD, OANDA:XAGUSD, FX:EURUSD, FX:GBPUSD, FX:USDJPY, FX:USDCHF, FX:AUDUSD, FX:USDCAD, BINANCE:BTCUSDT, BINANCE:ETHUSDT. Script loaded dynamically via `useEffect` with singleton loading pattern to avoid duplicate script tags. **Bug fix (July 18):** `widget.remove()` calls wrapped in `try/catch` to prevent "Cannot read properties of null (reading 'parentNode')" crash when navigating away from the Overview page (TradingView's tv.js tried to access a container DOM node that React had already removed during navigation).
 
@@ -318,6 +320,15 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **AI provider split:** Groq for existing AI features (news, journal), AgentRouter for new AI features (outlook, patterns) — per user preference
 - **Pattern Detection Yahoo symbol fix:** Changed `XAUUSD=X`/`XAGUSD=X` → `GC=F`/`SI=F` (futures) for historical data — Yahoo's chart API returns 404 for spot metal symbols
 - **AI multi-provider fallback:** Both `/api/outlook` and `/api/patterns` now try AgentRouter first, then fall back to Groq — AgentRouter key was returning "unauthorized client detected", so Groq ensures AI features still work
+- **Persistent Layout Sidebar:** Relocated the `<Sidebar />` component to `layout.tsx` to keep the navigation permanently mounted, preventing unmounting, layout shifts, or flickering on page routing.
+- **Theme Switcher anti-flash fix:** Refactored the theme switch knob translation to use Tailwind classes `translate-x-0 dark:translate-x-[28px]` rather than inline JS styles, aligning with the inline `<head>` script to prevent layout flashes on dark mode refreshes.
+- **Dynamic Institutional Macro Bias Matrix:** Added dynamic keyword scanning of merged RSS news streams to compute positive/negative sentiment weights for major assets (USD, EUR, GBP, Gold), rendering them in an institutional matrix on the Dashboard.
+- **Proactive Economic News Warnings:** Added high-impact event window scanning that flashes warnings when a high-impact calendar event is scheduled within the next 60 minutes or occurred in the past 15 minutes.
+- **Open Trade Correlation Alerts:** Integrated a pre-trade correlation lookup inside the Trade Journal that automatically scans active open positions and flags currency concentration risks before new trades are saved.
+- **Outlook API Memory Optimization:** Replaced hardcoded localhost fetch loops inside `api/outlook/route.ts` with direct function imports and executions to support clean deployment and eliminate port conflicts.
+- **Purity & React 19 Hydration Compliance:** Replaced all impure functions during render (like `Math.random` in keys and raw `Date.now` checks) with React-safe mappings and state/effect hooks. Cleaned up all ESLint warnings (switched to next/image unoptimized flags) and LCP issues.
+- **Fx Ultimate Pine strategy compiler & Telegram dispatcher:** Ported the `Fx_Ultimate.pine` (v6) Pine Script indicator rules (EMA crossovers, RSI pullbacks, Scoring matrix, dynamic pivot swing detection, session breakouts, and ATR ranges) into TypeScript, creating a new `/api/strategy-signals` route.
+- **Telegram Bot Configuration Panel:** Created a new tabbed UI inside `/alerts` page to configure Telegram bots, send test messages, save configurations in `localStorage`, and display a strategy HUD containing live calculated indicator values and alert triggers.
 
 ### 2.9 TradingView Logo URLs
 

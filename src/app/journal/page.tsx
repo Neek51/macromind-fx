@@ -24,6 +24,16 @@ const qualityColors: Record<string, string> = {
   High: "text-red-500",
 };
 
+const CORRELATIONS: Record<string, Record<string, number>> = {
+  "EUR/USD": { "GBP/USD": 0.88, "USD/CHF": -0.92, "USD/JPY": 0.15, "AUD/USD": 0.75, "USD/CAD": -0.65, "XAU/USD": 0.60 },
+  "GBP/USD": { "EUR/USD": 0.88, "USD/CHF": -0.82, "USD/JPY": 0.05, "AUD/USD": 0.68, "USD/CAD": -0.58, "XAU/USD": 0.52 },
+  "USD/CHF": { "EUR/USD": -0.92, "GBP/USD": -0.82, "USD/JPY": 0.28, "AUD/USD": -0.72, "USD/CAD": 0.62, "XAU/USD": -0.55 },
+  "USD/JPY": { "EUR/USD": 0.15, "GBP/USD": 0.05, "USD/CHF": 0.28, "AUD/USD": -0.08, "USD/CAD": 0.18, "XAU/USD": -0.32 },
+  "AUD/USD": { "EUR/USD": 0.75, "GBP/USD": 0.68, "USD/CHF": -0.72, "USD/JPY": -0.08, "USD/CAD": -0.78, "XAU/USD": 0.58 },
+  "USD/CAD": { "EUR/USD": -0.65, "GBP/USD": -0.58, "USD/CHF": 0.62, "USD/JPY": 0.18, "AUD/USD": -0.78, "XAU/USD": -0.45 },
+  "XAU/USD": { "EUR/USD": 0.60, "GBP/USD": 0.52, "USD/CHF": -0.55, "USD/JPY": -0.32, "AUD/USD": 0.58, "USD/CAD": -0.45 },
+};
+
 export default function JournalPage() {
   const [form, setForm] = useState({
     pair: "XAU/USD",
@@ -36,6 +46,29 @@ export default function JournalPage() {
   const [loading, setLoading] = useState(false);
   const [savedTrades, setSavedTrades] = useState<SavedTrade[]>([]);
   const [hasMounted, setHasMounted] = useState(false);
+
+  const checkCorrelationWarnings = () => {
+    const selected = form.pair;
+    const openTrades = savedTrades.filter(t => t.status === "Open");
+    if (openTrades.length === 0) return null;
+
+    const warnings: Array<{ pair: string; correlation: number }> = [];
+
+    openTrades.forEach(t => {
+      if (t.pair === selected) {
+        warnings.push({ pair: t.pair, correlation: 1.0 });
+        return;
+      }
+      const cor = CORRELATIONS[selected]?.[t.pair] ?? CORRELATIONS[t.pair]?.[selected] ?? 0;
+      if (Math.abs(cor) >= 0.75) {
+        warnings.push({ pair: t.pair, correlation: cor });
+      }
+    });
+
+    return warnings.length > 0 ? warnings : null;
+  };
+
+  const correlationWarnings = checkCorrelationWarnings();
 
   useEffect(() => {
     const saved = localStorage.getItem("macromind_journal");
@@ -201,6 +234,31 @@ export default function JournalPage() {
               onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
             />
           </label>
+
+          {/* Correlation Warnings */}
+          {correlationWarnings ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+              <div className="flex items-center gap-1.5 font-bold">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-600 dark:text-amber-400">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
+                </svg>
+                <span>Correlation Risk Warning</span>
+              </div>
+              <p className="mt-1 leading-5">
+                You are about to trade <strong>{form.pair}</strong>. You have open positions in the following correlated currency pairs:
+              </p>
+              <ul className="mt-1 list-disc pl-4 space-y-1">
+                {correlationWarnings.map((w, idx) => (
+                  <li key={`${w.pair}-${idx}`}>
+                    <strong>{w.pair}</strong> (Correlation: <span className="font-semibold">{w.correlation >= 0 ? "+" : ""}{w.correlation.toFixed(2)}</span>)
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 font-semibold text-amber-700 dark:text-amber-400">
+                ⚠️ Double exposure risk! Consider halving your lot size or skipping this setup to manage risk.
+              </p>
+            </div>
+          ) : null}
 
           {/* Buttons */}
           <div className="mt-5 flex gap-3">

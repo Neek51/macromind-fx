@@ -155,56 +155,53 @@ export function PageShell({
   const { darkMode, ready, toggleTheme } = useTheme();
 
   return (
-    <main className={`min-h-screen bg-[var(--background)] text-[var(--foreground)] ${ready ? "transition-colors duration-300" : ""}`}>
-      <Sidebar />
-      <section className="lg:pl-72">
-        {/* Header */}
-        <header className={`sticky top-0 z-10 border-b border-[var(--card-border)] bg-[var(--background)]/80 px-5 py-4 backdrop-blur-xl md:px-8 md:py-5 ${ready ? "transition-colors duration-300" : ""}`}>
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <div className="animate-fade-up">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-              <h1 className="mt-0.5 text-2xl font-bold tracking-tight md:text-[28px]">{title}</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Theme toggle — always rendered, icons via CSS, transition gated by ready */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={darkMode}
-                onClick={toggleTheme}
-                className={`relative h-9 w-16 rounded-full border border-[var(--card-border)] bg-[var(--card)] p-1 shadow-sm ${ready ? "transition-colors duration-300" : ""} hover:border-slate-300 dark:hover:border-slate-600`}
-              >
-                <span
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)] text-xs text-white shadow-sm translate-x-0 dark:translate-x-[28px]"
-                  style={{
-                    transition: ready ? "transform 0.3s ease" : "none",
-                  }}
-                >
-                  {/* Sun icon — visible in light mode, hidden in dark via CSS */}
-                  <svg className="block dark:hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-                  </svg>
-                  {/* Moon icon — hidden in light mode, visible in dark via CSS */}
-                  <svg className="hidden dark:block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-                  </svg>
-                </span>
-              </button>
-              {action ? (
-                <button className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                  {action}
-                </button>
-              ) : null}
-            </div>
+    <section className={`min-h-screen lg:pl-72 ${ready ? "transition-colors duration-300" : ""}`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-10 border-b border-[var(--card-border)] bg-[var(--background)]/80 px-5 py-4 backdrop-blur-xl md:px-8 md:py-5 ${ready ? "transition-colors duration-300" : ""}`}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <div className="animate-fade-up">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+            <h1 className="mt-0.5 text-2xl font-bold tracking-tight md:text-[28px]">{title}</h1>
           </div>
-        </header>
-        {/* Content */}
-        <div className="mx-auto max-w-6xl space-y-6 px-5 py-6 md:px-8 md:py-8">
-          {children}
+          <div className="flex items-center gap-3">
+            {/* Theme toggle — always rendered, icons via CSS, transition gated by ready */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={darkMode}
+              onClick={toggleTheme}
+              className={`relative h-9 w-16 rounded-full border border-[var(--card-border)] bg-[var(--card)] p-1 shadow-sm ${ready ? "transition-colors duration-300" : ""} hover:border-slate-300 dark:hover:border-slate-600`}
+            >
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)] text-xs text-white shadow-sm translate-x-0 dark:translate-x-[28px]"
+                style={{
+                  transition: ready ? "transform 0.3s ease" : "none",
+                }}
+              >
+                {/* Sun icon — visible in light mode, hidden in dark via CSS */}
+                <svg className="block dark:hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                </svg>
+                {/* Moon icon — hidden in light mode, visible in dark via CSS */}
+                <svg className="hidden dark:block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+                </svg>
+              </span>
+            </button>
+            {action ? (
+              <button className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                {action}
+              </button>
+            ) : null}
+          </div>
         </div>
-      </section>
-    </main>
+      </header>
+      {/* Content */}
+      <div className="mx-auto max-w-6xl space-y-6 px-5 py-6 md:px-8 md:py-8">
+        {children}
+      </div>
+    </section>
   );
 }
 

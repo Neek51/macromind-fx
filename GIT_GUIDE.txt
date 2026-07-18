@@ -1,0 +1,371 @@
+# 📘 Git & GitHub — Complete Beginner Guide
+# For: Nisarg (MacroMind FX project)
+# Created: July 18, 2026
+
+================================================================
+PART 1: WHAT IS GIT? WHAT IS GITHUB? WHAT IS GH?
+================================================================
+
+--- GIT ---
+Git is a tool installed on your computer that tracks changes in your code.
+Think of it like "save points" in a video game — you can save your progress,
+see history of all changes, and go back to any previous save point if needed.
+
+  - Git works OFFLINE (no internet needed)
+  - Git runs on YOUR computer
+  - Git is the "engine" that tracks file changes
+
+--- GITHUB ---
+GitHub is a WEBSITE (github.com) where you store your code online.
+Think of it like Google Drive or Dropbox but for code.
+
+  - GitHub needs internet
+  - GitHub is in the CLOUD (website)
+  - GitHub is where others can see, download, and contribute to your code
+  - Your repo URL: https://github.com/Neek51/macromind-fx
+
+--- GH (GitHub CLI) ---
+`gh` is a command-line tool that lets you interact with GitHub from terminal
+WITHOUT opening a browser. It handles login automatically so you don't
+need to type username/password every time you push.
+
+  - `gh auth login`     → Login to GitHub (you already did this ✅)
+  - `gh repo create`    → Create a new repo on GitHub
+  - `gh repo view --web`→ Open your repo in browser
+  - `gh repo list`      → List all your repos
+
+================================================================
+PART 2: YOUR CURRENT SETUP (Already Configured)
+================================================================
+
+Your project: /home/nisarg/Desktop/ideas/macromind-fx
+Your GitHub account: Neek51
+Your repo URL: https://github.com/Neek51/macromind-fx
+Git branch: main
+Auth method: gh CLI token (no password needed ever again ✅)
+
+================================================================
+PART 3: THE 3-COMMAND WORKFLOW (Use This Daily)
+================================================================
+
+Every time you make changes to your project, do these 3 steps:
+
+---
+
+STEP 1: STAGE (put changes in the "box")
+---
+  git add .
+
+  What it does: Prepares ALL changed files for commit
+  The "." means "everything in this folder"
+  Files in .gitignore are automatically skipped
+  Analogy: Packing items into a shipping box
+
+  Stage specific files only:
+  git add src/app/page.tsx
+  git add src/app/outlook/page.tsx src/app/types.ts
+
+---
+
+STEP 2: COMMIT (seal the box with a label)
+---
+  git commit -m "Describe what you changed here"
+
+  What it does: Creates a permanent "save point" with a message
+  The -m flag means "message" (the text in quotes)
+  Write WHAT and WHY you changed something
+  Analogy: Sealing the box and writing a label on it
+
+  Good commit messages:
+  git commit -m "Add price alert notification sound"
+  git commit -m "Fix chart not loading on mobile"
+  git commit -m "Update currency strength colors in dark mode"
+
+  Bad commit messages (don't do this):
+  git commit -m "stuff"
+  git commit -m "changes"
+  git commit -m "update"
+
+---
+
+STEP 3: PUSH (ship the box to GitHub)
+---
+  git push
+
+  What it does: Uploads your commits to GitHub
+  First time pushing a new branch: git push -u origin main
+  After that, just: git push
+  Analogy: Shipping the sealed box to the cloud warehouse
+
+---
+
+FULL EXAMPLE (copy-paste this workflow):
+
+  cd /home/nisarg/Desktop/ideas/macromind-fx
+  git add .
+  git commit -m "Add new feature / fix bug / update docs"
+  git push
+
+================================================================
+PART 4: ESSENTIAL COMMANDS (Cheat Sheet)
+================================================================
+
+--- CHECK STATUS (what changed?) ---
+  git status
+
+  Shows:
+  - Modified files (changed but not staged)
+  - Staged files (ready to commit)
+  - Untracked files (new files git doesn't know about)
+
+  Short version:
+  git status -s
+
+--- SEE CHANGES (what exactly changed?) ---
+  git diff
+
+  Shows line-by-line changes in unstaged files
+  Green lines = added
+  Red lines = removed
+
+  See staged changes only:
+  git diff --staged
+
+--- VIEW HISTORY (all past commits) ---
+  git log
+
+  Shows all commits with: hash, author, date, message
+  Short one-line version:
+  git log --oneline
+
+  Last 5 commits only:
+  git log --oneline -5
+
+--- SEE WHAT BRANCH YOU'RE ON ---
+  git branch
+
+  Current branch has a * next to it
+  Your main branch is called: main
+
+--- CHECK REMOTE (where is code stored?) ---
+  git remote -v
+
+  Shows where your code is linked (origin = GitHub URL)
+
+================================================================
+PART 5: PULL (Download Latest from GitHub)
+================================================================
+
+  git pull
+
+  What it does: Downloads latest changes from GitHub to your computer
+  Use this when:
+  - You made changes on GitHub website directly
+  - Someone else pushed changes to your repo
+  - You're working from a different computer
+  Analogy: Receiving new boxes from the cloud warehouse
+
+================================================================
+PART 6: CLONE (Download a Repo to Your Computer)
+================================================================
+
+  git clone https://github.com/Neek51/macromind-fx.git
+
+  What it does: Downloads an entire repo from GitHub to a new folder
+  Use this when:
+  - You're on a NEW computer and want to download your project
+  - You want to download someone else's public repo
+
+  Clone a specific folder only:
+  git clone https://github.com/Neek51/macromind-fx.git ~/Desktop/my-copy
+
+================================================================
+PART 7: UNDO / FIX MISTAKES
+================================================================
+
+--- Undo changes in a file (before staging) ---
+  git restore filename.tsx
+
+  Warning: This deletes your changes! Can't undo after this.
+
+--- Unstage a file (undo git add) ---
+  git restore --staged filename.tsx
+
+  The file goes back to "modified" but changes are kept.
+
+--- Undo last commit (but keep your changes) ---
+  git reset HEAD~1
+
+  Your changes are NOT deleted — they go back to "unstaged"
+  You can then fix and re-commit.
+
+--- Change your last commit message ---
+  git commit --amend -m "New better message"
+
+  Only works if you haven't pushed yet!
+
+--- Danger: Undo last commit AND delete changes ---
+  git reset --hard HEAD~1
+
+  WARNING: This permanently deletes your changes. Use with caution!
+
+================================================================
+PART 8: .GITIGNORE (Files That Should NOT Go to GitHub)
+================================================================
+
+The .gitignore file tells git which files to SKIP. Your project has:
+
+  .env*          → Environment variables (API keys — SECRET!)
+  node_modules/  → Downloaded dependencies (too big, not needed on GitHub)
+  .next/        → Build output (generated, not source code)
+  .qwen/        → Qwen Code internal config
+  resume.text    → Personal session token
+  todo.text      → Personal notes
+
+If you create a new file that should NOT be on GitHub, add it to .gitignore:
+  echo "secret-file.txt" >> .gitignore
+
+================================================================
+PART 9: GH CLI COMMANDS (GitHub from Terminal)
+================================================================
+
+--- Login (you already did this ✅) ---
+  gh auth login
+
+--- Check if you're logged in ---
+  gh auth status
+
+--- Create a new repo ---
+  gh repo create my-new-project --public --source=. --remote=origin
+  gh repo create my-private-project --private --source=. --remote=origin
+
+--- Open your repo in browser ---
+  gh repo view --web
+
+--- List all your repos ---
+  gh repo list
+
+--- View a specific repo info ---
+  gh repo view Neek51/macromind-fx
+
+--- Delete a repo (DANGER!) ---
+  gh repo delete Neek51/macromind-fx --yes
+
+================================================================
+PART 10: COMMON SCENARIOS
+================================================================
+
+--- Scenario 1: "I changed some files and want to upload" ---
+  cd /home/nisarg/Desktop/ideas/macromind-fx
+  git status                    # See what changed
+  git add .                     # Stage all changes
+  git commit -m "Describe changes here"
+  git push                      # Upload to GitHub
+
+--- Scenario 2: "I only want to commit one specific file" ---
+  git add src/app/outlook/page.tsx
+  git commit -m "Fix outlook loading bug"
+  git push
+
+--- Scenario 3: "I made a mistake in my commit message" ---
+  git commit --amend -m "Correct message here"
+  git push                      # If already pushed: git push --force
+
+--- Scenario 4: "I accidentally added a file I didn't want" ---
+  git restore --staged secret-file.txt
+  # Add it to .gitignore so it doesn't happen again
+  echo "secret-file.txt" >> .gitignore
+
+--- Scenario 5: "I want to see what I changed before committing" ---
+  git diff                      # See unstaged changes
+  git diff --staged             # See staged changes
+
+--- Scenario 6: "I want to download my project on another computer" ---
+  git clone https://github.com/Neek51/macromind-fx.git
+  cd macromind-fx
+  npm install                   # Install dependencies
+  npm run dev                   # Start dev server
+
+--- Scenario 7: "I want to go back to how things were before I changed them" ---
+  git restore .                 # Undo ALL unstaged changes (DANGER!)
+  git restore filename.tsx     # Undo changes in ONE file
+
+================================================================
+PART 11: GIT VOCABULARY (Terms to Know)
+================================================================
+
+  Repository (repo)  → A project folder tracked by git
+  Commit             → A "save point" with a message
+  Stage (index)      → Preparing files for commit (the "box")
+  Push               → Upload commits to GitHub
+  Pull               → Download latest from GitHub
+  Clone              → Download a full copy of a repo
+  Branch             → A separate line of work (you use: main)
+  Remote             → The GitHub URL linked to your local repo
+  Origin             → The default name for your remote (GitHub URL)
+  HEAD              → The current position (latest commit on current branch)
+  .gitignore        → File listing what git should NOT track
+  Fork              → A personal copy of someone else's repo
+  Merge             → Combine changes from two branches
+
+================================================================
+PART 12: YOUR GIT CONFIG (Already Set Up)
+================================================================
+
+  Your name:  Nisarg990
+  Your email: npatel9705@gmail.com
+  Credential helper: gh CLI token (no passwords needed)
+  Remote: https://github.com/Neek51/macromind-fx.git
+  Branch: main
+
+  To see your config:
+  git config user.name
+  git config user.email
+
+  To change your name/email:
+  git config user.name "Your Name"
+  git config user.email "your@email.com"
+
+================================================================
+PART 13: QUICK REFERENCE CARD (Print This!)
+================================================================
+
+  # === DAILY WORKFLOW (3 commands) ===
+  git add .
+  git commit -m "what changed"
+  git push
+
+  # === CHECK STATUS ===
+  git status
+  git status -s          # short version
+
+  # === SEE CHANGES ===
+  git diff               # unstaged
+  git diff --staged      # staged
+
+  # === HISTORY ===
+  git log --oneline -10  # last 10 commits
+
+  # === UNDO ===
+  git restore <file>         # undo changes in 1 file
+  git restore --staged <f>   # unstage a file
+  git commit --amend -m "x"  # fix last commit message
+  git reset HEAD~1           # undo last commit (keep changes)
+
+  # === GITHUB (gh CLI) ===
+  gh auth status             # check login
+  gh repo view --web         # open repo in browser
+  gh repo list               # list your repos
+
+  # === DOWNLOAD ON NEW COMPUTER ===
+  git clone https://github.com/Neek51/macromind-fx.git
+  cd macromind-fx
+  npm install
+  npm run dev
+
+================================================================
+
+  That's it bro! This guide covers everything you need.
+  Keep this file handy — you'll reference it often.
+
+  Happy coding! 🚀

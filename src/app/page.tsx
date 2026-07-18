@@ -26,6 +26,7 @@ export default function Home() {
   const [correlationData, setCorrelationData] = useState<CorrelationData | null>(null);
   const [correlationLoading, setCorrelationLoading] = useState(true);
   const [chartSymbol, setChartSymbol] = useState("XAU/USD");
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
 
   const fetchPrices = useCallback(async () => {
     try {
@@ -120,6 +121,19 @@ export default function Home() {
     };
   }, [fetchCorrelation]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentTime(Date.now());
+    }, 0);
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
+
   const displayAssets = liveData && liveData.length > 0 ? liveData : null;
 
   const highImpactEvents = calendarEvents.filter(e => e.impact === "High").length;
@@ -147,8 +161,136 @@ export default function Home() {
     .map((symbol) => marketAssets.find((asset) => asset.symbol === symbol))
     .filter((asset): asset is LiveAsset => Boolean(asset));
 
+  const checkEventWarning = () => {
+    if (!currentTime || !calendarEvents || calendarEvents.length === 0) return null;
+    const now = currentTime;
+    const alertWindowStart = now - 15 * 60 * 1000; // 15 minutes ago
+    const alertWindowEnd = now + 60 * 60 * 1000;   // 60 minutes from now
+
+    const activeEvent = calendarEvents.find(e => {
+      if (e.impact !== "High") return false;
+      const eventTime = new Date(e.date).getTime();
+      return eventTime >= alertWindowStart && eventTime <= alertWindowEnd;
+    });
+
+    if (activeEvent) {
+      const eventTime = new Date(activeEvent.date).getTime();
+      const diffMins = Math.round((eventTime - now) / 60000);
+      return {
+        event: activeEvent,
+        mins: diffMins,
+      };
+    }
+    return null;
+  };
+
+  const eventWarning = checkEventWarning();
+
+  const calculateMacroBiases = () => {
+    const biases: Record<string, { score: number; bias: "bullish" | "bearish" | "neutral"; details: string }> = {
+      USD: { score: 0, bias: "neutral", details: "Fed policies and inflation rates hold steady." },
+      EUR: { score: 0, bias: "neutral", details: "ECB stance remains steady with slow growth." },
+      GBP: { score: 0, bias: "neutral", details: "BOE rate expectations hold steady." },
+      XAU: { score: 0, bias: "neutral", details: "Safe-haven flows remain balanced." },
+    };
+
+    if (!news || news.length === 0) return biases;
+
+    news.forEach(item => {
+      const text = ((item.title || "") + " " + (item.summary || "")).toLowerCase();
+      
+      // USD sentiment
+      if (text.includes("fed") || text.includes("powell") || text.includes("inflation") || text.includes("yields")) {
+        if (text.includes("higher for longer") || text.includes("hawkish") || text.includes("rate hike") || text.includes("sticky") || text.includes("strong") || text.includes("rise")) {
+          biases.USD.score += 1;
+        }
+        if (text.includes("rate cut") || text.includes("dovish") || text.includes("cooling") || text.includes("weak") || text.includes("fall")) {
+          biases.USD.score -= 1;
+        }
+      }
+
+      // XAU Gold sentiment
+      if (text.includes("gold") || text.includes("xau") || text.includes("geopolitical") || text.includes("conflict") || text.includes("tension") || text.includes("safe haven")) {
+        if (text.includes("geopolitical") || text.includes("conflict") || text.includes("tension") || text.includes("safe haven") || text.includes("rally") || text.includes("soar") || text.includes("demand")) {
+          biases.XAU.score += 1;
+        }
+        if (text.includes("fed hike") || text.includes("rate hike") || text.includes("yields rise") || text.includes("selloff") || text.includes("plunge")) {
+          biases.XAU.score -= 1;
+        }
+      }
+
+      // EUR sentiment
+      if (text.includes("ecb") || text.includes("eurozone") || text.includes("lagarde")) {
+        if (text.includes("hawkish") || text.includes("rate hike") || text.includes("recovery") || text.includes("tightening")) {
+          biases.EUR.score += 1;
+        }
+        if (text.includes("dovish") || text.includes("rate cut") || text.includes("recession") || text.includes("easing")) {
+          biases.EUR.score -= 1;
+        }
+      }
+
+      // GBP sentiment
+      if (text.includes("boe") || text.includes("uk economy") || text.includes("bailey")) {
+        if (text.includes("hawkish") || text.includes("rate hike") || text.includes("inflation surge") || text.includes("stronger")) {
+          biases.GBP.score += 1;
+        }
+        if (text.includes("dovish") || text.includes("rate cut") || text.includes("easing") || text.includes("slowing")) {
+          biases.GBP.score -= 1;
+        }
+      }
+    });
+
+    Object.keys(biases).forEach(k => {
+      const b = biases[k];
+      if (b.score > 0) {
+        b.bias = "bullish";
+        b.details = k === "USD" ? "Hawkish Fed rhetoric or strong economic indicators are supporting the USD." : 
+                    k === "XAU" ? "Active safe-haven flows and geopolitical hedge buying are driving gold." : 
+                    k === "EUR" ? "ECB tightening signals are supporting euro strength." : 
+                    k === "GBP" ? "BOE hawkish policy bias is supporting sterling." : "Bullish momentum is building.";
+      } else if (b.score < 0) {
+        b.bias = "bearish";
+        b.details = k === "USD" ? "Fed rate cut expectations or slowing inflation are softening yields." : 
+                    k === "XAU" ? "Rising yields and dollar strength are pressuring non-yielding metal prices." : 
+                    k === "EUR" ? "Dovish ECB outlook and economic slowdown are weighing on the euro." : 
+                    k === "GBP" ? "Dovish BOE comments or cooling UK inflation are softening sterling." : "Bearish momentum is building.";
+      } else {
+        b.bias = "neutral";
+      }
+    });
+
+    return biases;
+  };
+
+  const macroBiases = calculateMacroBiases();
+
   return (
     <PageShell title="Market Intelligence Overview" label="Dashboard" action="Analyze News">
+      {/* Event Warning Banner */}
+      {eventWarning ? (
+        <div className="mb-6 flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 animate-fade-up">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400">
+            <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
+          </svg>
+          <div>
+            <h4 className="font-bold text-sm">⚠️ High-Impact Economic Event Alert</h4>
+            <p className="mt-1 text-xs leading-5">
+              {eventWarning.mins > 0 ? (
+                <>
+                  <strong>{eventWarning.event.country} {eventWarning.event.title}</strong> is scheduled in <strong>{eventWarning.mins} minutes</strong>. 
+                  High volatility, rapid price fluctuations, and spread expansions are highly likely. Consider closing open scalps or disabling new entries.
+                </>
+              ) : (
+                <>
+                  <strong>{eventWarning.event.country} {eventWarning.event.title}</strong> was released <strong>{Math.abs(eventWarning.mins)} minutes ago</strong>. 
+                  Heavy market volatility is currently in progress. Avoid immediate entries until spreads and price action stabilize.
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Live Market Prices */}
       <section>
         <div className="mb-4 flex items-center justify-between">
@@ -257,6 +399,43 @@ export default function Home() {
             </table>
           </div>
         </Card>
+      </section>
+
+      {/* Macro Bias Matrix */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--accent)] animate-pulse">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Institutional Macro Bias Matrix</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-4">
+          {Object.entries(macroBiases).map(([currency, data], idx) => {
+            const isBull = data.bias === "bullish";
+            const isBear = data.bias === "bearish";
+            return (
+              <Card key={currency} className="p-5 flex flex-col" style={{ animationDelay: `${(idx + 1) * 0.05}s` }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold tracking-tight">{currency === "XAU" ? "XAU (Gold)" : `${currency} Index`}</span>
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
+                    isBull ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-50/10" :
+                    isBear ? "bg-red-50 text-red-500 dark:bg-red-50/10" :
+                    "bg-slate-100 text-slate-500 dark:bg-white/5"
+                  }`}>
+                    {data.bias}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400 flex-1">{data.details}</p>
+                <div className="mt-3 border-t border-[var(--card-border)] pt-2 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                  <span>Sentiment Strength:</span>
+                  <span className={`font-bold ${data.score > 0 ? "text-emerald-600 dark:text-emerald-400" : data.score < 0 ? "text-red-500" : "text-slate-500"}`}>
+                    {data.score > 0 ? `+${data.score}` : data.score}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       </section>
 
       {/* Currency Strength Meter */}
