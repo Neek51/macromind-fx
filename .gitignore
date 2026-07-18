@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# qwen code internal
+.qwen/
+
+# personal/session files
+resume.text
+todo.text

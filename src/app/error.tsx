@@ -1,0 +1,45 @@
+"use client";
+
+import { useEffect } from "react";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error("Page error:", error);
+  }, [error]);
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[var(--background)] p-8 text-[var(--foreground)]">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-50/10">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold">Something went wrong</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-500">
+          {error.digest ? `Error reference: ${error.digest}` : "An unexpected error occurred while rendering this page."}
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            onClick={() => reset()}
+            className="rounded-xl bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Try again
+          </button>
+          <button
+            onClick={() => window.history.back()}
+            className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-6 py-3 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Go back
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
