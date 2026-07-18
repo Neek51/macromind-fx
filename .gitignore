@@ -46,3 +46,7 @@ next-env.d.ts
 # personal/session files
 resume.text
 todo.text
+
+# strategy alerts local storage
+strategy-config.json
+strategy-state.json
