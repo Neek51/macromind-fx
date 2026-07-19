@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callAI } from "../ai-provider";
 
 // Yahoo chart API doesn't support XAUUSD=X/XAGUSD=X — use futures for metals
 const YAHOO_SYMBOLS: Record<string, string> = {
@@ -6,47 +7,6 @@ const YAHOO_SYMBOLS: Record<string, string> = {
   "GBP/USD": "GBPUSD=X", "USD/JPY": "USDJPY=X", "USD/CHF": "USDCHF=X",
   "AUD/USD": "AUDUSD=X", "USD/CAD": "USDCAD=X", "BTC/USD": "BTC-USD", "ETH/USD": "ETH-USD",
 };
-
-// Try AgentRouter first, fall back to Groq
-const AGENTROUTER_KEY = process.env.OPENAI_API_KEY ?? process.env.AGENTROUTER_API_KEY;
-const AGENTROUTER_URL = process.env.AGENTROUTER_BASE_URL ?? "https://agentrouter.org/v1";
-const AGENTROUTER_MODEL = process.env.AGENTROUTER_MODEL ?? "gpt-5.5";
-const GROQ_KEY = process.env.GROQ_API_KEY;
-const GROQ_URL = "https://api.groq.com/openai/v1";
-const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
-
-async function callAI(prompt: string, systemPrompt: string): Promise<string | null> {
-  const providers = [
-    { key: AGENTROUTER_KEY, url: AGENTROUTER_URL, model: AGENTROUTER_MODEL },
-    { key: GROQ_KEY, url: GROQ_URL, model: GROQ_MODEL },
-  ];
-
-  for (const provider of providers) {
-    if (!provider.key) continue;
-    try {
-      const response = await fetch(`${provider.url}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${provider.key}` },
-        body: JSON.stringify({
-          model: provider.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) continue; // try next provider
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch {
-      // try next provider
-    }
-  }
-  return null;
-}
 
 type Candle = { open: number; high: number; low: number; close: number; volume: number };
 
@@ -234,6 +194,7 @@ export async function GET(request: Request) {
     });
 
     let aiNotes: Record<string, string> = {};
+    let aiProviderName = "";
     if (patterns.length > 0) {
       try {
         const patternsContext = patterns.map((p, i) =>
@@ -253,8 +214,11 @@ ${patternsContext}
 
 Return JSON: {"0":"note for pattern 0","1":"note for pattern 1",...}`;
 
-        const content = await callAI(prompt, "You are a forex trading educator. Return only valid JSON. Educational only, not financial advice.");
-        if (content) aiNotes = JSON.parse(content);
+        const result = await callAI(prompt, "You are a forex trading educator. Return only valid JSON. Educational only, not financial advice.");
+        if (result) {
+          aiNotes = JSON.parse(result.content);
+          aiProviderName = result.provider;
+        }
       } catch { /* AI notes are optional */ }
     }
 
@@ -269,7 +233,6 @@ Return JSON: {"0":"note for pattern 0","1":"note for pattern 1",...}`;
       aiNote: aiNotes[String(i)] ?? undefined,
     }));
 
-    const hasAI = Boolean(AGENTROUTER_KEY || GROQ_KEY);
     return NextResponse.json({
       data: {
         symbol,
@@ -281,7 +244,7 @@ Return JSON: {"0":"note for pattern 0","1":"note for pattern 1",...}`;
         trendStrength: trendInfo.trendStrength,
         currentPrice: Number(currentPrice.toFixed(2)),
         computedAt: new Date().toISOString(),
-        source: hasAI ? "Algorithmic detection + AI analysis" : "Algorithmic detection",
+        source: aiProviderName ? `Algorithmic detection + AI (${aiProviderName})` : "Algorithmic detection",
       },
     });
   } catch {

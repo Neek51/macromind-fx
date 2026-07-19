@@ -40,7 +40,7 @@ export default function PatternsPage() {
   }, [analyze, symbol]);
 
   return (
-    <PageShell title="AI Pattern Detection" label="Patterns" action="Re-scan">
+    <PageShell title="AI Pattern Detection" label="Patterns" action="Re-scan" onActionClick={() => analyze(symbol)}>
       {/* Symbol selector */}
       <section>
         <Card className="animate-fade-up">
@@ -107,57 +107,64 @@ export default function PatternsPage() {
       {/* Detected patterns */}
       <section>
         <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Detected Patterns</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {loading ? (
-            [1, 2, 3, 4].map(i => <div key={i} className="h-40 animate-pulse rounded-2xl border border-[var(--card-border)] bg-[var(--card)] shadow-sm dark:bg-white/[0.02]" />)
+            [1, 2, 3, 4].map(i => <div key={i} className="h-44 animate-pulse rounded-2xl border border-[var(--card-border)] bg-[var(--card)] shadow-sm dark:bg-white/[0.02]" />)
           ) : result && (result.patterns?.length ?? 0) > 0 ? (
             result.patterns.map((pattern, i) => (
-              <Card key={`${pattern.name}-${i}`} className="animate-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold">{pattern.name}</h3>
-                    <p className="text-xs font-medium capitalize text-slate-500">{pattern.type}</p>
+              <Card key={`${pattern.name}-${i}`} className="animate-fade-up flex flex-col justify-between" style={{ animationDelay: `${i * 0.05}s` }}>
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">{pattern.name}</h3>
+                      <p className="text-sm font-semibold capitalize text-slate-500 mt-0.5">{pattern.type}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wide ${directionColors[pattern.direction] ?? directionColors.neutral}`}>
+                        {pattern.direction}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">{pattern.confidence}% confidence</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`rounded-md px-2.5 py-1 text-xs font-bold capitalize ${directionColors[pattern.direction] ?? directionColors.neutral}`}>
-                      {pattern.direction}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">{pattern.confidence}% confidence</span>
+
+                  {/* Confidence bar */}
+                  <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${pattern.direction === "bullish" ? "bg-emerald-500" : pattern.direction === "bearish" ? "bg-rose-500" : "bg-slate-400"}`}
+                      style={{ width: `${pattern.confidence}%` }}
+                    />
                   </div>
-                </div>
 
-                {/* Confidence bar */}
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
-                  <div
-                    className={`h-full rounded-full ${pattern.direction === "bullish" ? "bg-emerald-500" : pattern.direction === "bearish" ? "bg-red-500" : "bg-slate-400"}`}
-                    style={{ width: `${pattern.confidence}%` }}
-                  />
-                </div>
+                  <p className="mt-4 text-base leading-relaxed text-slate-600 dark:text-slate-350">{pattern.description}</p>
 
-                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{pattern.description}</p>
-
-                <div className="mt-4 grid gap-2 text-xs">
-                  <div className="flex gap-2">
-                    <span className="shrink-0 font-semibold text-emerald-600">Entry:</span>
-                    <span className="text-slate-600 dark:text-slate-400">{pattern.entryZone}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="shrink-0 font-semibold text-red-500">Invalidation:</span>
-                    <span className="text-slate-600 dark:text-slate-400">{pattern.invalidation}</span>
+                  <div className="mt-5 space-y-2.5 rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm dark:border-slate-800/40 dark:bg-white/[0.01]">
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0 font-bold text-emerald-600 w-24">Entry Zone:</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{pattern.entryZone}</span>
+                    </div>
+                    <div className="flex items-start gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/40">
+                      <span className="shrink-0 font-bold text-rose-500 w-24">Invalidation:</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{pattern.invalidation}</span>
+                    </div>
                   </div>
                 </div>
 
                 {pattern.aiNote ? (
-                  <div className="mt-3 rounded-xl bg-[var(--accent-soft)] p-3 text-xs leading-5">
-                    <span className="font-semibold text-[var(--accent)]">AI Note: </span>
-                    <span className="text-slate-600 dark:text-slate-300">{pattern.aiNote}</span>
+                  <div className="mt-5 rounded-xl border border-[var(--accent)]/10 bg-[var(--accent-soft)] p-4 text-sm leading-relaxed">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[var(--accent)]">
+                        <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5Z" fill="currentColor" />
+                      </svg>
+                      <span className="font-bold text-[var(--accent)]">AI Educational Insights</span>
+                    </div>
+                    <p className="text-slate-700 dark:text-slate-300">{pattern.aiNote}</p>
                   </div>
                 ) : null}
               </Card>
             ))
           ) : !loading ? (
-            <Card className="md:col-span-2">
-              <p className="text-center text-sm text-slate-400">No significant patterns detected in the current price action.</p>
+            <Card className="md:col-span-2 py-12 text-center">
+              <p className="text-base font-semibold text-slate-400">No significant patterns detected in the current price action.</p>
             </Card>
           ) : null}
         </div>
@@ -166,29 +173,47 @@ export default function PatternsPage() {
       {/* Support / Resistance */}
       {!loading && result && !result.error && (result.supportLevels.length > 0 || result.resistanceLevels.length > 0) ? (
         <section className="grid gap-6 xl:grid-cols-2">
-          <Card className="animate-fade-up-delay-2">
-            <h2 className="text-xl font-bold text-emerald-600">Support Levels</h2>
-            <p className="mt-1 text-xs text-slate-400">Price zones where buying pressure may emerge</p>
-            <div className="mt-4 space-y-2">
+          <Card className="animate-fade-up-delay-2 p-6">
+            <div className="flex items-center gap-2 border-b border-[var(--card-border)] pb-3">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 5v14M19 12l-7 7-7-7" />
+                </svg>
+              </span>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Support Levels</h2>
+                <p className="text-xs text-slate-400">Buying pressure zones</p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
               {result.supportLevels.length > 0 ? result.supportLevels.map((level, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-emerald-50/30 p-3 dark:bg-emerald-50/5">
-                  <span className="text-sm font-bold">S{i + 1}</span>
-                  <span className="text-sm font-bold tabular-nums">{formatPrice(result.symbol, level)}</span>
-                  <span className="text-xs text-slate-400">{(((level - result.currentPrice) / result.currentPrice) * 100).toFixed(1)}% below</span>
+                <div key={i} className="flex items-center justify-between rounded-xl border border-emerald-500/10 bg-emerald-50/20 p-4 dark:bg-emerald-950/[0.04]">
+                  <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">S{i + 1}</span>
+                  <span className="text-base font-extrabold text-slate-800 dark:text-slate-100 tabular-nums">{formatPrice(result.symbol, level)}</span>
+                  <span className="text-sm font-semibold text-slate-500 tabular-nums">{(((level - result.currentPrice) / result.currentPrice) * 100).toFixed(1)}% below</span>
                 </div>
               )) : <p className="text-sm text-slate-400">No support levels detected.</p>}
             </div>
           </Card>
 
-          <Card className="animate-fade-up-delay-3">
-            <h2 className="text-xl font-bold text-red-500">Resistance Levels</h2>
-            <p className="mt-1 text-xs text-slate-400">Price zones where selling pressure may emerge</p>
-            <div className="mt-4 space-y-2">
+          <Card className="animate-fade-up-delay-3 p-6">
+            <div className="flex items-center gap-2 border-b border-[var(--card-border)] pb-3">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+              </span>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Resistance Levels</h2>
+                <p className="text-xs text-slate-400">Selling pressure zones</p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
               {result.resistanceLevels.length > 0 ? result.resistanceLevels.map((level, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-red-50/30 p-3 dark:bg-red-50/5">
-                  <span className="text-sm font-bold">R{i + 1}</span>
-                  <span className="text-sm font-bold tabular-nums">{formatPrice(result.symbol, level)}</span>
-                  <span className="text-xs text-slate-400">{(((level - result.currentPrice) / result.currentPrice) * 100).toFixed(1)}% above</span>
+                <div key={i} className="flex items-center justify-between rounded-xl border border-rose-500/10 bg-rose-50/20 p-4 dark:bg-rose-950/[0.04]">
+                  <span className="text-base font-bold text-rose-600 dark:text-rose-400">R{i + 1}</span>
+                  <span className="text-base font-extrabold text-slate-800 dark:text-slate-100 tabular-nums">{formatPrice(result.symbol, level)}</span>
+                  <span className="text-sm font-semibold text-slate-500 tabular-nums">{(((level - result.currentPrice) / result.currentPrice) * 100).toFixed(1)}% above</span>
                 </div>
               )) : <p className="text-sm text-slate-400">No resistance levels detected.</p>}
             </div>

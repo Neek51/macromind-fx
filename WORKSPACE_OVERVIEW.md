@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 18, 2026 (added persistent sidebar layout, resolved dark/light theme flash, added dynamic Macro Bias Matrix and high-impact Economic Event alerts on the Dashboard, added open trade correlation warnings in the Trade Journal, optimized outlook API with in-memory routing, and resolved all ESLint compiler warnings and errors)
+**Last Updated:** July 19, 2026 (added mobile navigation drawer with hamburger menu — fixes missing nav on mobile/tablet; exported `navItems` for reuse; added `MobileNav` slide-out component with backdrop, body scroll lock, and auto-close on route change; replaced sliding theme switch with a simple click-to-toggle icon button — moon icon in light mode, sun icon in dark mode; reorganized dashboard information hierarchy — promoted Confluence Synthesizer to position #2 as "AI Confluence Verdict" with a lightning-bolt section header, added "Deep Tools" section header before Correlation Matrix to visually zone the dashboard into Live Snapshot → AI Verdict → Deep Tools → Risk; added price flash effect — prices flash green when ticking up, red when ticking down, clearing after 1s, matching pro terminal behavior; added tabular-nums to featured asset card prices for stable digit alignment; unified all 4 AI routes onto a shared 2-tier fallback chain via new `src/app/api/ai-provider.ts` — Priority 1: Groq llama-3.3-70b (fast), Priority 2: AgentRouter gpt-5.5; tested OpenCode Zen DeepSeek V4 as primary but reverted due to slow response times)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -99,16 +99,17 @@ macromind-fx/
 │   ├── data.ts                 ← Fallback static data (assets, news, events, trades)
 │   ├── globals.css             ← Tailwind v4 + CSS custom properties + dark mode overrides
 │   ├── loading.tsx             ← Dashboard loading skeleton
-│   ├── error.tsx               ← Global error boundary (uses unstable_retry)
+│   ├── error.tsx               ← Global error boundary (uses reset — fixed from unstable_retry)
 │   ├── api/
 │   │   ├── prices/route.ts     ← Live market data (Yahoo Finance + gold-api.com + fallbacks)
 │   │   ├── correlation/route.ts ← Live Pearson correlation matrix from Yahoo historical daily closes
+│   │   ├── calendar/route.ts   ← Economic calendar (ForexFactory free JSON feed, this week + weekend fallback)
 │   │   ├── news/route.ts       ← Yahoo Finance RSS → rss2json (no key, real-time forex news)
-│   │   ├── analyze/route.ts    ← AI sentiment analysis (Groq API → llama-3.3-70b-versatile)
-│   │   ├── calendar/route.ts   ← Economic calendar (nfs.faireconomy.media free JSON)
-│   │   ├── journal-review/route.ts ← AI trade review (Groq API → grade, suggestions)
-│   │   ├── outlook/route.ts    ← AI Daily Market Outlook (AgentRouter/OpenAI-compatible → daily summary, key levels, opportunities, risks)
-│   │   ├── patterns/route.ts   ← AI Pattern Detection (algorithmic swing detection + AgentRouter educational notes)
+│   │   ├── analyze/route.ts    ← AI sentiment analysis (shared 2-tier fallback: Groq → AgentRouter)
+│   │   ├── journal-review/route.ts ← AI trade review (shared 2-tier fallback)
+│   │   ├── outlook/route.ts    ← AI Daily Market Outlook (shared 2-tier fallback, fetches live data internally)
+│   │   ├── patterns/route.ts   ← AI Pattern Detection (algorithmic swing detection + shared 2-tier AI notes)
+│   │   ├── ai-provider.ts     ← Shared 2-tier AI fallback chain (Groq llama-3.3-70b → AgentRouter gpt-5.5)
 │   │   └── strategy-signals/route.ts ← Fx Ultimate Pine strategy compiler & Telegram dispatcher
 │   ├── htf/ (outlook, patterns, alerts etc.)
 │   ├── outlook/
@@ -283,7 +284,9 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 
 **Sidebar:** Fixed left sidebar (72px width, hidden on mobile). Contains logo "MacroMind FX", **7 nav items** (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal), and a risk reminder card at the bottom. Active route is highlighted with accent color.
 
-**PageShell:** Main layout wrapper. Sticky header with page title, label, theme toggle (sun/moon switch), and action button. Content area max-width 6xl with responsive padding.
+**MobileNav:** Slide-out drawer for mobile/tablet (visible below `lg` breakpoint). Triggered by a hamburger button in the `PageShell` header. Includes a backdrop overlay (click to close), body scroll lock while open, auto-close on route change, and reuses the same `navItems` array as the Sidebar. Contains the same logo, nav links, and risk footer as the desktop Sidebar.
+
+**PageShell:** Main layout wrapper. Sticky header with hamburger button (mobile only), page title, label, theme toggle (sun/moon switch), and action button. Content area max-width 6xl with responsive padding.
 
 **Card:** Rounded-2xl (16px) with border, white/dark background, shadow-sm, hover:shadow-md transition.
 
@@ -321,7 +324,13 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **AI provider split:** Groq for existing AI features (news, journal), AgentRouter for new AI features (outlook, patterns) — per user preference
 - **Pattern Detection Yahoo symbol fix:** Changed `XAUUSD=X`/`XAGUSD=X` → `GC=F`/`SI=F` (futures) for historical data — Yahoo's chart API returns 404 for spot metal symbols
 - **AI multi-provider fallback:** Both `/api/outlook` and `/api/patterns` now try AgentRouter first, then fall back to Groq — AgentRouter key was returning "unauthorized client detected", so Groq ensures AI features still work
+- **Dashboard Information Hierarchy Reorganized:** Promoted the Confluence Synthesizer from position #8 (buried at the bottom) to position #2 (right after Live Market Prices) as the "AI Confluence Verdict" — now the first thing traders see after live prices. Added a "Deep Tools" section header before the Correlation Matrix to visually zone the dashboard into: **Live Snapshot** (prices + macro bias) → **AI Verdict** (confluence synthesizer) → **Deep Tools** (correlation, sessions, position calc) → **Risk** (calendar + risk score). The AI verdict is now front-and-center instead of buried under 6 sections of raw data.
+
+- **Price Flash Effect:** Added Bloomberg/TradingView-style price flash — when a live price ticks up, the price cell briefly flashes green (emerald); when it ticks down, it flashes red. Uses `useRef` to track previous prices per asset, computes direction on each 5-second poll, applies a CSS `@keyframes flashUp`/`flashDown` animation, and clears after 1 second. Applied to both the 4 featured asset cards and the watchlist table. Added `tabular-nums` to featured card prices so digits stay aligned and the layout doesn't jitter when prices change.
+
 - **Persistent Layout Sidebar:** Relocated the `<Sidebar />` component to `layout.tsx` to keep the navigation permanently mounted, preventing unmounting, layout shifts, or flickering on page routing.
+- **Theme Switcher simplified:** Replaced the sliding toggle (left/right swipe) with a simple click-to-toggle icon button — shows a moon icon in light mode (click → dark) and a sun icon in dark mode (click → light). One click, instant switch, no swipe.
+
 - **Theme Switcher anti-flash fix:** Refactored the theme switch knob translation to use Tailwind classes `translate-x-0 dark:translate-x-[28px]` rather than inline JS styles, aligning with the inline `<head>` script to prevent layout flashes on dark mode refreshes.
 - **Dynamic Institutional Macro Bias Matrix:** Added dynamic keyword scanning of merged RSS news streams to compute positive/negative sentiment weights for major assets (USD, EUR, GBP, Gold), rendering them in an institutional matrix on the Dashboard.
 - **Proactive Economic News Warnings:** Added high-impact event window scanning that flashes warnings when a high-impact calendar event is scheduled within the next 60 minutes or occurred in the past 15 minutes.
@@ -331,6 +340,9 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **Fx Ultimate Pine strategy compiler & Telegram dispatcher:** Ported the `Fx_Ultimate.pine` (v6) Pine Script indicator rules (EMA crossovers, RSI pullbacks, Scoring matrix, dynamic pivot swing detection, session breakouts, and ATR ranges) into TypeScript, creating a new `/api/strategy-signals` route.
 - **Telegram Bot Configuration Panel:** Created a new tabbed UI inside `/alerts` page to configure Telegram bots, send test messages, save configurations in `localStorage`, and display a strategy HUD containing live calculated indicator values and alert triggers.
 - **Confluence Synthesizer (4-Lane Verdict Engine):** Implemented a custom analyzer widget (`src/app/confluence-synthesizer.tsx`) on the home dashboard that combines Technical, Flow, Narrative, and Macro lanes into an aligned trade plan with stop-loss and take-profit targets (1:2 R:R). Removed the Live TradingView Chart card and expanded the Synthesizer to render at full-width.
+- **Interactive PageShell Action Buttons:** Resolved usability defects in the global `<PageShell />` component header buttons (e.g., "Re-scan", "Refresh", "Add Trade"). Converted the hardcoded markup into dynamic trigger elements supporting `actionHref` redirects and custom `onActionClick` handler callbacks with `cursor-pointer` mouse states.
+- **Fast-First AI Route Prioritization (Groq first):** Swapped model processing priority in the AI routes (`api/outlook/route.ts` and `api/patterns/route.ts`) to prioritize Groq (Llama 70B) first for near-instant 1-second load times, falling back to GitHub Models (GPT-4o) when limits are exceeded. Also enriched patterns route to track and output the active model provider.
+- **Calendar API Timeout & Fallback Expansion (Dynamic Weekday Rolling Scheduler):** Implemented a strict 2.5-second fetch abort timeout and a 30-minute next-revalidation cache on the external economic calendar API call to prevent server hangs. Upgraded the fallback events database in `src/app/data.ts` to dynamically calculate calendar event dates relative to the active date (`Date.now()`), automatically steering all mock events to weekdays (avoiding weekends) so that a realistic mix of both completed past events and active future/upcoming events is always displayed. Aligned all UI tab counts on the calendar page to strictly measure upcoming events, resolving list mismatch indicators.
 
 ### 2.9 TradingView Logo URLs
 

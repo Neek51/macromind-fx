@@ -2,49 +2,7 @@ import { NextResponse } from "next/server";
 import { GET as getPrices } from "../prices/route";
 import { GET as getNews } from "../news/route";
 import { GET as getCalendar } from "../calendar/route";
-
-// Try AgentRouter first, fall back to Groq
-const AGENTROUTER_KEY = process.env.OPENAI_API_KEY ?? process.env.AGENTROUTER_API_KEY;
-const AGENTROUTER_URL = process.env.AGENTROUTER_BASE_URL ?? "https://agentrouter.org/v1";
-const AGENTROUTER_MODEL = process.env.AGENTROUTER_MODEL ?? "gpt-5.5";
-const GROQ_KEY = process.env.GROQ_API_KEY;
-const GROQ_URL = "https://api.groq.com/openai/v1";
-const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
-
-const HAS_AI = Boolean(AGENTROUTER_KEY || GROQ_KEY);
-
-async function callAI(prompt: string, systemPrompt: string): Promise<string | null> {
-  const providers = [
-    { key: AGENTROUTER_KEY, url: AGENTROUTER_URL, model: AGENTROUTER_MODEL },
-    { key: GROQ_KEY, url: GROQ_URL, model: GROQ_MODEL },
-  ];
-
-  for (const provider of providers) {
-    if (!provider.key) continue;
-    try {
-      const response = await fetch(`${provider.url}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${provider.key}` },
-        body: JSON.stringify({
-          model: provider.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) continue;
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch {
-      // try next provider
-    }
-  }
-  return null;
-}
+import { callAI, hasAIKey } from "../ai-provider";
 
 const DISPLAY_NAMES: Record<string, string> = {
   "XAU/USD": "Gold", "XAG/USD": "Silver", "EUR/USD": "Euro / Dollar",
@@ -84,7 +42,7 @@ export async function GET() {
   try {
     const [prices, news, calendar] = await Promise.all([fetchPrices(), fetchNews(), fetchCalendar()]);
 
-    if (!HAS_AI) {
+    if (!hasAIKey()) {
       return NextResponse.json({
         data: {
           date: new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }),
@@ -159,20 +117,20 @@ Return ONLY valid JSON with this exact shape:
 
 Provide 3-5 keyLevels for the most relevant assets. Provide 2-4 eventsToWatch. Keep everything educational, not financial advice.`;
 
-    const content = await callAI(prompt, "You are a forex market analyst. Return only valid JSON. Provide educational analysis only, not financial advice.");
+    const result = await callAI(prompt, "You are a forex market analyst. Return only valid JSON. Provide educational analysis only, not financial advice.");
 
-    if (!content) {
+    if (!result) {
       return NextResponse.json({ data: { error: "AI service unavailable. Check API keys in .env.local." } }, { status: 502 });
     }
 
-    const aiResult = JSON.parse(content);
+    const aiResult = JSON.parse(result.content);
 
     return NextResponse.json({
       data: {
         ...aiResult,
         date: new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }),
         generatedAt: new Date().toISOString(),
-        source: "AI-generated from live market data",
+        source: result.provider,
       },
     });
   } catch {

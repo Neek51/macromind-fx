@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
 
-const navItems = [
+export const navItems = [
   {
     label: "Overview",
     href: "/",
@@ -141,64 +142,195 @@ export function Sidebar() {
   );
 }
 
+export function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname();
+
+  // Close drawer on route change
+  useEffect(() => {
+    if (open) onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Lock body scroll while drawer is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [open]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-hidden="true"
+      />
+
+      {/* Drawer */}
+      <aside
+        className={`fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-[var(--card-border)] bg-[var(--sidebar)] px-5 py-6 shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Mobile navigation"
+        aria-hidden={!open}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          aria-label="Close menu"
+          className="absolute right-3 top-5 flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-slate-200"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Logo */}
+        <Link href="/" className="group flex items-center gap-3 px-2" onClick={onClose}>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)] text-lg font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105">
+            M
+          </div>
+          <div>
+            <p className="text-lg font-bold tracking-tight">MacroMind FX</p>
+            <p className="text-xs font-medium text-slate-500">Forex intelligence</p>
+          </div>
+        </Link>
+
+        {/* Nav */}
+        <nav className="mt-8 flex-1 space-y-1 overflow-y-auto">
+          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
+          {navItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                aria-current={active ? "page" : undefined}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  active
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-[var(--accent)]/15"
+                    : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+                }`}
+              >
+                <span className={`transition-colors duration-200 ${active ? "text-[var(--accent)]" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
+                  {item.icon}
+                </span>
+                {item.label}
+                {active && (
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Risk footer */}
+        <div className="mt-auto rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-4">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+              <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
+            </svg>
+            <p className="text-xs font-semibold">Risk reminder</p>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Educational market research only — not financial advice.
+          </p>
+        </div>
+      </aside>
+    </>
+  );
+}
+
 export function PageShell({
   title,
   label,
   action,
+  actionHref,
+  onActionClick,
   children,
 }: {
   title: string;
   label: string;
   action?: string;
+  actionHref?: string;
+  onActionClick?: () => void;
   children: React.ReactNode;
 }) {
   const { darkMode, ready, toggleTheme } = useTheme();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <section className={`min-h-screen lg:pl-72 ${ready ? "transition-colors duration-300" : ""}`}>
+      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
       {/* Header */}
       <header className={`sticky top-0 z-10 border-b border-[var(--card-border)] bg-[var(--background)]/80 px-5 py-4 backdrop-blur-xl md:px-8 md:py-5 ${ready ? "transition-colors duration-300" : ""}`}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <div className="animate-fade-up">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-            <h1 className="mt-0.5 text-2xl font-bold tracking-tight md:text-[28px]">{title}</h1>
-          </div>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {/* Theme toggle — always rendered, icons via CSS, transition gated by ready */}
+            {/* Hamburger — mobile only */}
             <button
               type="button"
-              role="switch"
-              aria-checked={darkMode}
-              onClick={toggleTheme}
-              className={`relative h-9 w-16 rounded-full border border-[var(--card-border)] bg-[var(--card)] p-1 shadow-sm ${ready ? "transition-colors duration-300" : ""} hover:border-slate-300 dark:hover:border-slate-600`}
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--card-border)] bg-[var(--card)] shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-600 lg:hidden"
             >
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent)] text-xs text-white shadow-sm translate-x-0 dark:translate-x-[28px]"
-                style={{
-                  transition: ready ? "transform 0.3s ease" : "none",
-                }}
-              >
-                {/* Sun icon — visible in light mode, hidden in dark via CSS */}
-                <svg className="block dark:hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
+            <div className="animate-fade-up">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+              <h1 className="mt-0.5 text-2xl font-bold tracking-tight md:text-[28px]">{title}</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Theme toggle — click to switch (icon shows the mode you'll switch TO) */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--card-border)] bg-[var(--card)] shadow-sm cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 ${ready ? "transition-colors duration-300" : ""}`}
+            >
+              {/* Sun icon — shown in dark mode (click to go light) */}
+              {darkMode ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
                   <circle cx="12" cy="12" r="4" />
                   <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
                 </svg>
-                {/* Moon icon — hidden in light mode, visible in dark via CSS */}
-                <svg className="hidden dark:block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              ) : (
+                /* Moon icon — shown in light mode (click to go dark) */
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600">
                   <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
                 </svg>
-              </span>
+              )}
             </button>
             {action ? (
-              <button className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                {action}
-              </button>
+              actionHref ? (
+                <Link
+                  href={actionHref}
+                  className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer block text-center"
+                >
+                  {action}
+                </Link>
+              ) : (
+                <button
+                  onClick={onActionClick}
+                  className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
+                >
+                  {action}
+                </button>
+              )
             ) : null}
           </div>
         </div>
       </header>
       {/* Content */}
-      <div className="mx-auto max-w-6xl space-y-6 px-5 py-6 md:px-8 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-5 py-6 md:px-8 md:py-8">
         {children}
       </div>
     </section>

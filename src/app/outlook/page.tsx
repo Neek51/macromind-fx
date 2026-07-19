@@ -37,7 +37,7 @@ export default function OutlookPage() {
   }, [fetchOutlook]);
 
   return (
-    <PageShell title="AI Daily Market Outlook" label="Outlook" action="Refresh">
+    <PageShell title="AI Daily Market Outlook" label="Outlook" action="Refresh" onActionClick={fetchOutlook}>
       {outlook?.error ? (
         <Card className="flex items-center gap-3 bg-red-50 dark:bg-red-50/10">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-500">

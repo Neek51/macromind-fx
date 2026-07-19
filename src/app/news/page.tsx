@@ -234,7 +234,7 @@ export default function NewsPage() {
       ];
 
   return (
-    <PageShell title="AI News Impact Analyzer" label="News AI" action="Run Analysis">
+    <PageShell title="AI News Impact Analyzer" label="News AI" action="Run Analysis" onActionClick={analyzeText}>
       {/* Analyzer */}
       <section className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
         {/* Input */}

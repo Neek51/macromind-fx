@@ -171,7 +171,7 @@ export default function JournalPage() {
   }
 
   return (
-    <PageShell title="AI Trade Journal" label="Journal" action="Add Trade">
+    <PageShell title="AI Trade Journal" label="Journal" action="Add Trade" onActionClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
       {/* Entry + AI review */}
       <section className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         {/* Form */}

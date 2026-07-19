@@ -349,7 +349,17 @@ export default function AlertsPage() {
   const livePriceForPair = livePrices[form.symbol];
 
   return (
-    <PageShell title="Price & Strategy Alerts" label="Alerts Manager" action="Enable Alerts">
+    <PageShell
+      title="Price & Strategy Alerts"
+      label="Alerts Manager"
+      action="Enable Alerts"
+      onActionClick={() => {
+        setActiveTab("strategy");
+        setTimeout(() => {
+          window.scrollTo({ top: 400, behavior: "smooth" });
+        }, 50);
+      }}
+    >
       {/* Navigation Tab Selector */}
       <div className="mb-6 flex gap-2 border-b border-[var(--card-border)] pb-2">
         <button
