@@ -1,8 +1,9 @@
 /**
- * Shared 2-tier AI fallback chain for all MacroMind FX AI routes.
+ * Shared 3-tier AI fallback chain for all MacroMind FX AI routes.
  *
- * Priority 1: Groq       → llama-3.3-70b-versatile (fast, primary)
- * Priority 2: AgentRouter → gpt-5.5 (last resort)
+ * Priority 1: Groq Key 1   → llama-3.3-70b-versatile (fast, primary)
+ * Priority 2: Groq Key 2   → llama-3.3-70b-versatile (fast, backup)
+ * Priority 3: AgentRouter  → gpt-4o (last resort)
  *
  * All providers use the OpenAI-compatible chat/completions format.
  * Each provider is tried in order — first success wins, failures fall through.
@@ -27,15 +28,24 @@ export function buildProviders(): ProviderConfig[] {
     process.env.OPENAI_API_KEY ??
     process.env.AGENTROUTER_API_KEY;
 
+  const groqModel = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+
   return [
-    // 1 — Groq (fast primary)
+    // 1 — Groq primary key
     {
-      name: "Groq",
+      name: "Groq (Primary)",
       key: process.env.GROQ_API_KEY,
       url: "https://api.groq.com/openai/v1",
-      model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+      model: groqModel,
     },
-    // 2 — AgentRouter (last resort)
+    // 2 — Groq backup key
+    {
+      name: "Groq (Backup)",
+      key: process.env.GROQ_API_KEY_2,
+      url: "https://api.groq.com/openai/v1",
+      model: groqModel,
+    },
+    // 3 — AgentRouter (last resort)
     {
       name: process.env.AGENTROUTER_BASE_URL?.includes("github") ? "GitHub Models" : "AgentRouter",
       key: agentRouterKey,

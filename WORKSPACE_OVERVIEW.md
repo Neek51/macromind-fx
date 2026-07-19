@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 19, 2026 (added mobile navigation drawer with hamburger menu — fixes missing nav on mobile/tablet; exported `navItems` for reuse; added `MobileNav` slide-out component with backdrop, body scroll lock, and auto-close on route change; replaced sliding theme switch with a simple click-to-toggle icon button — moon icon in light mode, sun icon in dark mode; reorganized dashboard information hierarchy — promoted Confluence Synthesizer to position #2 as "AI Confluence Verdict" with a lightning-bolt section header, added "Deep Tools" section header before Correlation Matrix to visually zone the dashboard into Live Snapshot → AI Verdict → Deep Tools → Risk; added price flash effect — prices flash green when ticking up, red when ticking down, clearing after 1s, matching pro terminal behavior; added tabular-nums to featured asset card prices for stable digit alignment; unified all 4 AI routes onto a shared 2-tier fallback chain via new `src/app/api/ai-provider.ts` — Priority 1: Groq llama-3.3-70b (fast), Priority 2: AgentRouter gpt-5.5; tested OpenCode Zen DeepSeek V4 as primary but reverted due to slow response times)
+**Last Updated:** July 19, 2026 (added mobile navigation drawer with hamburger menu; simplified theme toggle to click-to-switch; reorganized dashboard hierarchy with Confluence Synthesizer promoted to position #2; added price flash + tabular numbers; unified all 4 AI routes onto shared 2-tier fallback via ai-provider.ts; added Strategy Backtester — new /backtest page with strategy builder, backtest engine, candlestick chart with buy/sell markers, equity curve, and performance stats; restructured economic calendar into a full-width list with a right-side slide-over details drawer; migrated backtest charts from lightweight-charts v4 to v5 using the unified addSeries and createSeriesMarkers APIs; added Pine Script AI Configurator to visually import, parse, and auto-configure custom Pine Script strategy rules for the backtest simulator via AI)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -86,7 +86,7 @@ macromind-fx/
 ├── src/app/
 │   ├── layout.tsx              ← Root layout: Geist font, ThemeProvider, anti-flash script
 │   ├── page.tsx                ← Dashboard home (~300 lines, extracted from ~1250)
-│   ├── components.tsx          ← Sidebar, PageShell, Card components (7 nav items)
+│   ├── components.tsx          ← Sidebar, MobileNav, PageShell, Card components (8 nav items)
 │   ├── types.ts                ← Shared TypeScript types (LiveAsset, CalendarEvent, CorrelationData, MarketOutlook, PatternResult, PriceAlert, etc.)
 │   ├── asset-icon.tsx          ← AssetIcon component + LOGO_URLS + nameMap + formatPrice + timeAgo
 │   ├── currency-strength-meter.tsx ← Currency Strength Meter component
@@ -110,7 +110,12 @@ macromind-fx/
 │   │   ├── outlook/route.ts    ← AI Daily Market Outlook (shared 2-tier fallback, fetches live data internally)
 │   │   ├── patterns/route.ts   ← AI Pattern Detection (algorithmic swing detection + shared 2-tier AI notes)
 │   │   ├── ai-provider.ts     ← Shared 2-tier AI fallback chain (Groq llama-3.3-70b → AgentRouter gpt-5.5)
-│   │   └── strategy-signals/route.ts ← Fx Ultimate Pine strategy compiler & Telegram dispatcher
+│   │   ├── history/route.ts   ← Historical candle data (Yahoo Finance, any timeframe/range)
+│   │   ├── strategy-signals/route.ts ← Fx Ultimate Pine strategy compiler & Telegram dispatcher
+│   │   └── backtest/
+│   │       └── parse-pine/route.ts ← Pine Script AI parser API (reads Pine Script code, returns parsed config JSON)
+│   ├── lib/
+│   │   └── backtest.ts        ← Backtest engine (EMA crossover + RSI pullback, ATR SL/TP, bar-by-bar simulation)
 │   ├── htf/ (outlook, patterns, alerts etc.)
 │   ├── outlook/
 │   │   ├── layout.tsx          ← Metadata for Outlook page
@@ -142,6 +147,13 @@ macromind-fx/
 │       ├── page.tsx            ← AI Trade Journal page
 │       ├── loading.tsx         ← Journal loading skeleton
 │       └── error.tsx           ← Journal error boundary
+│   ├── backtest/
+│       ├── layout.tsx          ← Metadata for Backtest page
+│       ├── page.tsx            ← Strategy Backtester page (builder + results + chart + equity + trade list)
+│       ├── backtest-chart.tsx  ← Candlestick chart with EMA overlays + buy/sell markers (lightweight-charts)
+│       ├── equity-chart.tsx   ← Equity curve area chart (lightweight-charts)
+│       ├── loading.tsx         ← Backtest loading skeleton
+│       └── error.tsx           ← Backtest error boundary
 ├── .env.example                ← Environment variable template
 ├── .env.local                  ← Active env (GROQ_API_KEY, OPENAI_API_KEY, AGENTROUTER_BASE_URL, AGENTROUTER_MODEL)
 ├── package.json                ← Next.js 16, React 19, Tailwind v4, TypeScript 5
@@ -243,7 +255,7 @@ The News AI page auto-analyzes the latest headline on load and caches results in
 
 The `/api/calendar` route fetches from `https://nfs.faireconomy.media/ff_calendar_thisweek.json` — a free, no-key JSON feed from ForexFactory. Returns all events for the current week sorted by date. Each event has: `title`, `country`, `date`, `impact` (High/Medium/Low/Holiday), `forecast`, `previous`.
 
-The Calendar page supports filtering by impact level (All / High / High+Medium) and shows events in both desktop table and mobile card layouts.
+The Calendar page displays upcoming events in a clean, full-width table layout (no horizontal split). Clicking "Analyze" on any high or medium impact event slides in a premium right-side detail drawer backed by a blurred backdrop overlay, loading the AI Pre-Release Playbook scenarios with custom-wrapped trade triggers (Trigger Zone, Stop Loss, Take Profit) dynamically fetched with a server-side spot price fallback check.
 
 ### 2.7 Design System
 
@@ -282,7 +294,7 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 
 ### 2.8 Components
 
-**Sidebar:** Fixed left sidebar (72px width, hidden on mobile). Contains logo "MacroMind FX", **7 nav items** (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal), and a risk reminder card at the bottom. Active route is highlighted with accent color.
+**Sidebar:** Fixed left sidebar (72px width, hidden on mobile). Contains logo "MacroMind FX", **8 nav items** (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal, Backtest), and a risk reminder card at the bottom. Active route is highlighted with accent color.
 
 **MobileNav:** Slide-out drawer for mobile/tablet (visible below `lg` breakpoint). Triggered by a hamburger button in the `PageShell` header. Includes a backdrop overlay (click to close), body scroll lock while open, auto-close on route change, and reuses the same `navItems` array as the Sidebar. Contains the same logo, nav links, and risk footer as the desktop Sidebar.
 
@@ -319,7 +331,7 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **TradingView navigation crash fix:** `widget.remove()` calls in `tradingview-chart.tsx` wrapped in `try/catch` — TradingView's tv.js threw "Cannot read properties of null (reading 'parentNode')" during React cleanup when navigating away from Overview, escaping all error boundaries → "This page couldn't load"
 - **3 new pages added:** `/outlook` (AI Daily Market Outlook), `/patterns` (AI Pattern Detection), `/alerts` (Smart Price Alerts)
 - **2 new API routes:** `/api/outlook` (AgentRouter AI daily summary), `/api/patterns` (algorithmic pattern detection + AI notes)
-- **Sidebar expanded:** 4 → 7 nav items (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal)
+- **Sidebar expanded:** 4 → 8 nav items (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal, Backtest)
 - **3 new types:** `MarketOutlook`, `PatternResult`, `PriceAlert` added to `types.ts`
 - **AI provider split:** Groq for existing AI features (news, journal), AgentRouter for new AI features (outlook, patterns) — per user preference
 - **Pattern Detection Yahoo symbol fix:** Changed `XAUUSD=X`/`XAGUSD=X` → `GC=F`/`SI=F` (futures) for historical data — Yahoo's chart API returns 404 for spot metal symbols
@@ -343,6 +355,7 @@ The Calendar page supports filtering by impact level (All / High / High+Medium) 
 - **Interactive PageShell Action Buttons:** Resolved usability defects in the global `<PageShell />` component header buttons (e.g., "Re-scan", "Refresh", "Add Trade"). Converted the hardcoded markup into dynamic trigger elements supporting `actionHref` redirects and custom `onActionClick` handler callbacks with `cursor-pointer` mouse states.
 - **Fast-First AI Route Prioritization (Groq first):** Swapped model processing priority in the AI routes (`api/outlook/route.ts` and `api/patterns/route.ts`) to prioritize Groq (Llama 70B) first for near-instant 1-second load times, falling back to GitHub Models (GPT-4o) when limits are exceeded. Also enriched patterns route to track and output the active model provider.
 - **Calendar API Timeout & Fallback Expansion (Dynamic Weekday Rolling Scheduler):** Implemented a strict 2.5-second fetch abort timeout and a 30-minute next-revalidation cache on the external economic calendar API call to prevent server hangs. Upgraded the fallback events database in `src/app/data.ts` to dynamically calculate calendar event dates relative to the active date (`Date.now()`), automatically steering all mock events to weekdays (avoiding weekends) so that a realistic mix of both completed past events and active future/upcoming events is always displayed. Aligned all UI tab counts on the calendar page to strictly measure upcoming events, resolving list mismatch indicators.
+- **Pine Script AI Configurator & Custom Strategy Engine:** Created a visual code uploader and paste editor inside the Backtest page, supported by a server-side AI parsing endpoint (`/api/backtest/parse-pine`). This parses raw TradingView Pine Script strategy files, maps logic triggers to structured `RuleCondition` objects (`crosses_above`, `crosses_below`, etc.), and updates the backtesting simulator settings dynamically.
 
 ### 2.9 TradingView Logo URLs
 
