@@ -6,6 +6,7 @@ import { AssetIcon, nameMap, formatPrice } from "../asset-icon";
 import type { PriceAlert, LiveAsset } from "../types";
 
 const STORAGE_KEY = "macromind-alerts";
+const STRATEGY_STORAGE_KEY = "macromind-strategy-config";
 const POLL_INTERVAL = 5000;
 
 type AlertForm = {
@@ -81,7 +82,7 @@ export default function AlertsPage() {
   const [testStatus, setTestStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [testLoading, setTestLoading] = useState(false);
 
-  // Hydrate from localStorage and server configuration
+  // Hydrate from localStorage
   useEffect(() => {
     try {
       const storedAlerts = localStorage.getItem(STORAGE_KEY);
@@ -93,26 +94,26 @@ export default function AlertsPage() {
       }
     } catch { /* corrupted */ }
 
-    // Fetch config from server
-    fetch("/api/strategy-config")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json && typeof json === "object" && !json.error) {
+    // Load strategy config from localStorage (works on Vercel — no server needed)
+    try {
+      const storedStrategy = localStorage.getItem(STRATEGY_STORAGE_KEY);
+      if (storedStrategy) {
+        const parsed = JSON.parse(storedStrategy);
+        if (parsed && typeof parsed === "object") {
           setTimeout(
             () =>
               setStrategyConfig({
-                botToken: json.botToken || "",
-                chatId: json.chatId || "",
-                alerts: Array.isArray(json.alerts) ? json.alerts : [],
+                botToken: parsed.botToken || "",
+                chatId: parsed.chatId || "",
+                alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [],
               }),
             0
           );
         }
-      })
-      .catch(() => {})
-      .finally(() => {
-        setHydrated(true);
-      });
+      }
+    } catch { /* corrupted */ }
+
+    setTimeout(() => setHydrated(true), 0);
 
     if (typeof window !== "undefined" && "Notification" in window) {
       setTimeout(() => setNotifPermission(Notification.permission), 0);
@@ -127,16 +128,13 @@ export default function AlertsPage() {
     } catch {}
   }, [alerts, hydrated]);
 
-  // Save strategy configurations to server
-  const saveStrategyConfig = useCallback(async (newConfig: StrategyConfig) => {
+  // Save strategy config to localStorage
+  useEffect(() => {
+    if (!hydrated) return;
     try {
-      await fetch("/api/strategy-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newConfig),
-      });
-    } catch { /* save fail */ }
-  }, []);
+      localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(strategyConfig));
+    } catch {}
+  }, [strategyConfig, hydrated]);
 
   // Poll prices and check alerts
   const checkAlerts = useCallback(async () => {
@@ -307,7 +305,6 @@ export default function AlertsPage() {
     };
     setStrategyConfig((prev) => {
       const updated = { ...prev, alerts: [...prev.alerts, newAlert] };
-      saveStrategyConfig(updated);
       return updated;
     });
   }
@@ -315,7 +312,6 @@ export default function AlertsPage() {
   function deleteStrategyAlert(id: string) {
     setStrategyConfig((prev) => {
       const updated = { ...prev, alerts: prev.alerts.filter((a) => a.id !== id) };
-      saveStrategyConfig(updated);
       return updated;
     });
     setHuds((prev) => {
@@ -331,7 +327,6 @@ export default function AlertsPage() {
         ...prev,
         alerts: prev.alerts.map((a) => (a.id === id ? { ...a, active: !a.active } : a)),
       };
-      saveStrategyConfig(updated);
       return updated;
     });
   }
@@ -339,7 +334,6 @@ export default function AlertsPage() {
   function handleCredentialChange(key: "botToken" | "chatId", val: string) {
     setStrategyConfig((prev) => {
       const updated = { ...prev, [key]: val };
-      saveStrategyConfig(updated);
       return updated;
     });
   }

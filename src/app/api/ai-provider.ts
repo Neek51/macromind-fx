@@ -45,7 +45,14 @@ export function buildProviders(): ProviderConfig[] {
       url: "https://api.groq.com/openai/v1",
       model: groqModel,
     },
-    // 3 — AgentRouter (last resort)
+    // 3 — OpenCode Zen (DeepSeek V4 Free)
+    {
+      name: "OpenCode Zen",
+      key: process.env.OPENCODE_ZEN_API_KEY,
+      url: "https://opencode.ai/zen/v1",
+      model: "deepseek-v4-flash-free",
+    },
+    // 4 — AgentRouter (last resort)
     {
       name: process.env.AGENTROUTER_BASE_URL?.includes("github") ? "GitHub Models" : "AgentRouter",
       key: agentRouterKey,
@@ -73,6 +80,7 @@ export async function callAI(
         `[AI] Trying ${provider.name} (${provider.model}) at ${provider.url}/chat/completions`,
       );
 
+      const startTime = Date.now();
       const response = await fetch(`${provider.url}/chat/completions`, {
         method: "POST",
         headers: {
@@ -96,9 +104,12 @@ export async function callAI(
       }
 
       const data = await response.json();
+      const endTime = Date.now();
+      const elapsed = ((endTime - startTime) / 1000).toFixed(2);
+
       const content = data.choices?.[0]?.message?.content;
       if (content) {
-        console.log(`[AI] ✅ ${provider.name} succeeded`);
+        console.log(`[AI] ✅ ${provider.name} succeeded in ${elapsed}s`);
         return {
           content,
           model: provider.model,

@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 19, 2026 (added mobile navigation drawer with hamburger menu; simplified theme toggle to click-to-switch; reorganized dashboard hierarchy with Confluence Synthesizer promoted to position #2; added price flash + tabular numbers; unified all 4 AI routes onto shared 2-tier fallback via ai-provider.ts; added Strategy Backtester — new /backtest page with strategy builder, backtest engine, candlestick chart with buy/sell markers, equity curve, and performance stats; restructured economic calendar into a full-width list with a right-side slide-over details drawer; migrated backtest charts from lightweight-charts v4 to v5 using the unified addSeries and createSeriesMarkers APIs; added Pine Script AI Configurator to visually import, parse, and auto-configure custom Pine Script strategy rules for the backtest simulator via AI)
+**Last Updated:** July 20, 2026 (fixed strategy alerts + Telegram config persistence on Vercel — moved from server-side file storage to localStorage since Vercel filesystem is read-only; strategy-config API route no longer used for persistence; all alert config now survives page refresh on Vercel)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
