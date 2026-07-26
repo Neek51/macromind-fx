@@ -1,25 +1,9 @@
 import { NextResponse } from "next/server";
 
 const DISPLAY_NAMES: Record<string, string> = {
-  "XAU/USD": "Gold",
-  "XAG/USD": "Silver",
-  "EUR/USD": "Euro / Dollar",
-  "GBP/USD": "Pound / Dollar",
-  "USD/JPY": "Dollar / Yen",
-  "USD/CHF": "Dollar / Franc",
-  "AUD/USD": "Aussie / Dollar",
-  "USD/CAD": "Dollar / Loonie",
-  "BTC/USD": "Bitcoin",
-  "ETH/USD": "Ethereum",
-};
-
-const YAHOO_FOREX_SYMBOLS: Record<string, string> = {
-  "EUR/USD": "EURUSD=X",
-  "GBP/USD": "GBPUSD=X",
-  "USD/JPY": "USDJPY=X",
-  "USD/CHF": "USDCHF=X",
-  "AUD/USD": "AUDUSD=X",
-  "USD/CAD": "USDCAD=X",
+  "XAU/USD": "Gold Spot",
+  "BTC/USD": "Bitcoin Spot",
+  "EUR/USD": "Euro / Dollar Spot",
 };
 
 type PriceResponse = {
@@ -30,165 +14,122 @@ type PriceResponse = {
   percent_change: number;
   high: number;
   low: number;
+  source: string;
+  instrumentType: "spot" | "fallback";
+  updatedAt: string;
+  isFallback: boolean;
 };
 
 type YahooMeta = {
   regularMarketPrice: number;
   chartPreviousClose?: number;
   previousClose?: number;
-  regularMarketDayHigh: number;
-  regularMarketDayLow: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  regularMarketTime?: number;
 };
 
-async function fetchYahooChart(yahooSymbol: string): Promise<YahooMeta | null> {
+async function fetchYahoo(symbol: string): Promise<YahooMeta | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1m&range=1d`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
     if (!res.ok) return null;
     const json = await res.json();
-    const meta: YahooMeta | undefined = json?.chart?.result?.[0]?.meta;
-    if (!meta || !meta.regularMarketPrice) return null;
-    return meta;
+    const meta = json?.chart?.result?.[0]?.meta as YahooMeta | undefined;
+    return meta?.regularMarketPrice ? meta : null;
   } catch {
     return null;
   }
 }
 
-function buildFromYahooMeta(symbol: string, meta: YahooMeta): PriceResponse {
-  const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
-  const change = meta.regularMarketPrice - prevClose;
-  const percentChange = prevClose !== 0 ? (change / prevClose) * 100 : 0;
+function fromYahoo(symbol: string, meta: YahooMeta): PriceResponse {
+  const previous = meta.chartPreviousClose ?? meta.previousClose ?? meta.regularMarketPrice;
+  const change = meta.regularMarketPrice - previous;
   return {
     symbol,
-    name: DISPLAY_NAMES[symbol] ?? symbol,
+    name: DISPLAY_NAMES[symbol],
     price: meta.regularMarketPrice,
     change,
-    percent_change: percentChange,
-    high: meta.regularMarketDayHigh || meta.regularMarketPrice,
-    low: meta.regularMarketDayLow || meta.regularMarketPrice,
+    percent_change: previous ? change / previous * 100 : 0,
+    high: meta.regularMarketDayHigh ?? 0,
+    low: meta.regularMarketDayLow ?? 0,
+    source: "Yahoo Finance",
+    instrumentType: "spot",
+    updatedAt: new Date((meta.regularMarketTime ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+    isFallback: false,
   };
 }
 
-// Metals: get spot price from gold-api.com + change/high/low from Yahoo futures
-async function fetchMetalWithChange(symbol: string): Promise<PriceResponse | null> {
-  const metalCode = symbol === "XAU/USD" ? "XAU" : "XAG";
-  const futuresSymbol = symbol === "XAU/USD" ? "GC=F" : "SI=F";
-
-  // Fetch both in parallel: spot price from gold-api.com, change data from Yahoo futures
-  const [goldApiRes, yahooMeta] = await Promise.all([
-    fetch(`https://api.gold-api.com/price/${metalCode}`)
-      .then(r => r.ok ? r.json() : null)
-      .catch(() => null),
-    fetchYahooChart(futuresSymbol),
-  ]);
-
-  // If we have spot price from gold-api.com
-  if (goldApiRes?.price) {
-    const spotPrice = goldApiRes.price;
-
-    // If Yahoo futures also returned data, use its change/high/low
-    if (yahooMeta) {
-      const prevClose = yahooMeta.chartPreviousClose ?? yahooMeta.previousClose ?? spotPrice;
-      const change = spotPrice - prevClose;
-      const percentChange = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-      return {
-        symbol,
-        name: DISPLAY_NAMES[symbol] ?? symbol,
-        price: spotPrice,
-        change,
-        percent_change: percentChange,
-        high: yahooMeta.regularMarketDayHigh || spotPrice,
-        low: yahooMeta.regularMarketDayLow || spotPrice,
-      };
-    }
-
-    // Only spot price available, no change data
-    return {
-      symbol,
-      name: DISPLAY_NAMES[symbol] ?? symbol,
-      price: spotPrice,
-      change: 0,
-      percent_change: 0,
-      high: spotPrice,
-      low: spotPrice,
-    };
-  }
-
-  // gold-api.com failed — try Yahoo spot first, then Yahoo futures
-  const yahooSpot = await fetchYahooChart(symbol === "XAU/USD" ? "XAUUSD=X" : "XAGUSD=X");
-  if (yahooSpot) return buildFromYahooMeta(symbol, yahooSpot);
-
-  if (yahooMeta) return buildFromYahooMeta(symbol, yahooMeta);
-
-  return null;
-}
-
-// Forex: Yahoo Finance
-async function fetchForex(symbol: string): Promise<PriceResponse | null> {
-  const yahooSymbol = YAHOO_FOREX_SYMBOLS[symbol];
-  if (!yahooSymbol) return null;
-  const meta = await fetchYahooChart(yahooSymbol);
-  if (!meta) return null;
-  return buildFromYahooMeta(symbol, meta);
-}
-
-// Fallback: fawazahmed0 currency-api for forex (daily EOD)
-async function fetchForexFallback(symbol: string): Promise<PriceResponse | null> {
+async function fetchGoldSpot(): Promise<PriceResponse | null> {
   try {
-    const [base, quote] = symbol.split("/");
-    const res = await fetch(
-      `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${quote.toLowerCase()}.json`
-    );
+    const res = await fetch("https://api.gold-api.com/price/XAU", { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
-    const json = await res.json();
-    const rate = json?.[quote.toLowerCase()]?.[base.toLowerCase()];
-    if (!rate || rate === 0) return null;
+    const data = await res.json();
+    if (!data?.price) return null;
     return {
-      symbol,
-      name: DISPLAY_NAMES[symbol] ?? symbol,
-      price: rate,
+      symbol: "XAU/USD",
+      name: DISPLAY_NAMES["XAU/USD"],
+      price: data.price,
       change: 0,
       percent_change: 0,
-      high: rate,
-      low: rate,
+      high: 0,
+      low: 0,
+      source: "Gold API",
+      instrumentType: "spot",
+      updatedAt: new Date().toISOString(),
+      isFallback: false,
     };
   } catch {
     return null;
   }
 }
 
-// Crypto: Yahoo Finance (BTC-USD, ETH-USD)
-async function fetchCrypto(symbol: string): Promise<PriceResponse | null> {
-  const yahooSymbol = symbol === "BTC/USD" ? "BTC-USD" : "ETH-USD";
-  const meta = await fetchYahooChart(yahooSymbol);
-  if (!meta) return null;
-  return buildFromYahooMeta(symbol, meta);
+async function fetchEurUsdFallback(): Promise<PriceResponse | null> {
+  try {
+    const res = await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json", {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const rate = json?.eur?.usd;
+    if (!rate) return null;
+    return {
+      symbol: "EUR/USD",
+      name: DISPLAY_NAMES["EUR/USD"],
+      price: rate,
+      change: 0,
+      percent_change: 0,
+      high: 0,
+      low: 0,
+      source: "Currency API daily reference",
+      instrumentType: "fallback",
+      updatedAt: new Date().toISOString(),
+      isFallback: true,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function GET() {
-  const symbols = ["XAU/USD", "XAG/USD", "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD", "USD/CAD", "BTC/USD", "ETH/USD"];
+  const [gold, bitcoinMeta, eurMeta] = await Promise.all([
+    fetchGoldSpot(),
+    fetchYahoo("BTC-USD"),
+    fetchYahoo("EURUSD=X"),
+  ]);
 
-  try {
-    const results = await Promise.all(
-      symbols.map(async (symbol) => {
-        if (symbol === "XAU/USD" || symbol === "XAG/USD") {
-          return await fetchMetalWithChange(symbol);
-        }
-        if (symbol === "BTC/USD" || symbol === "ETH/USD") {
-          return await fetchCrypto(symbol);
-        }
-        return (await fetchForex(symbol)) ?? (await fetchForexFallback(symbol));
-      }),
-    );
+  const results: Array<PriceResponse | null> = [
+    gold,
+    bitcoinMeta ? fromYahoo("BTC/USD", bitcoinMeta) : null,
+    eurMeta ? fromYahoo("EUR/USD", eurMeta) : await fetchEurUsdFallback(),
+  ];
+  const data = results.filter((item): item is PriceResponse => Boolean(item));
 
-    const validResults = results.filter((r): r is PriceResponse => r !== null);
-
-    if (validResults.length === 0) {
-      return NextResponse.json({ error: "All market data sources failed." }, { status: 502 });
-    }
-
-    return NextResponse.json({ data: validResults });
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch market data." }, { status: 502 });
+  if (data.length === 0) {
+    return NextResponse.json({ error: "All verified market data sources failed." }, { status: 502 });
   }
+
+  return NextResponse.json({ data, fetchedAt: new Date().toISOString() });
 }

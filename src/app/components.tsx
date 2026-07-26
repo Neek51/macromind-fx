@@ -7,6 +7,7 @@ import { useTheme } from "./theme-provider";
 
 export const navItems = [
   {
+    group: "Market",
     label: "Overview",
     href: "/",
     icon: (
@@ -19,6 +20,7 @@ export const navItems = [
     ),
   },
   {
+    group: "Market",
     label: "Outlook",
     href: "/outlook",
     icon: (
@@ -29,6 +31,7 @@ export const navItems = [
     ),
   },
   {
+    group: "Market",
     label: "Patterns",
     href: "/patterns",
     icon: (
@@ -41,15 +44,7 @@ export const navItems = [
     ),
   },
   {
-    label: "Alerts",
-    href: "/alerts",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-      </svg>
-    ),
-  },
-  {
+    group: "Intelligence",
     label: "News AI",
     href: "/news",
     icon: (
@@ -60,6 +55,7 @@ export const navItems = [
     ),
   },
   {
+    group: "Intelligence",
     label: "Calendar",
     href: "/calendar",
     icon: (
@@ -70,83 +66,63 @@ export const navItems = [
       </svg>
     ),
   },
-  {
-    label: "Trade Journal",
-    href: "/journal",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 4.5C4 3.7 4.7 3 5.5 3H18l2 2v14.5c0 .8-.7 1.5-1.5 1.5h-13C4.7 21 4 20.3 4 19.5z" />
-        <path d="M8 7h8M8 11h8M8 15h5" />
-      </svg>
-    ),
-  },
-  {
-    label: "Backtest",
-    href: "/backtest",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 3v18h18" />
-        <path d="M7 14l4-4 4 4 6-6" />
-      </svg>
-    ),
-  },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 hidden h-screen w-72 flex-col border-r border-[var(--card-border)] bg-[var(--sidebar)] px-5 py-6 transition-colors duration-300 lg:flex">
-      {/* Logo */}
+    <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r border-[var(--card-border)] bg-[var(--sidebar)] px-4 py-5 transition-colors duration-300 lg:flex">
       <Link href="/" className="group flex items-center gap-3 px-2">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)] text-lg font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] text-lg font-bold text-[var(--accent)] transition-transform duration-300 group-hover:scale-105">
           M
         </div>
         <div>
-          <p className="text-lg font-bold tracking-tight">MacroMind FX</p>
-          <p className="text-xs font-medium text-slate-500">Forex intelligence</p>
+          <p className="text-[15px] font-bold tracking-tight">MacroMind <span className="text-[var(--accent)]">FX</span></p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Market intelligence</p>
         </div>
       </Link>
 
-      {/* Nav */}
-      <nav className="mt-8 flex-1 space-y-1">
-        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
-        {navItems.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                active
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-[var(--accent)]/15"
-                  : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
-              }`}
-            >
-              <span className={`transition-colors duration-200 ${active ? "text-[var(--accent)]" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
-                {item.icon}
-              </span>
-              {item.label}
-              {active && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              )}
-            </Link>
-          );
-        })}
+      <nav className="mt-6 flex-1 space-y-5" aria-label="Primary navigation">
+        {Array.from(new Set(navItems.map((item) => item.group))).map((group) => (
+          <div key={group}>
+            <p className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{group}</p>
+            <div className="space-y-1">
+              {navItems.filter((item) => item.group === group).map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition-all duration-200 ${
+                      active
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    {active && <span className="absolute left-0 h-5 w-0.5 rounded-full bg-[var(--accent)]" />}
+                    <span className={`transition-colors duration-200 ${active ? "text-[var(--accent)]" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
+                      {item.icon}
+                    </span>
+                    {item.label}
+                    {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Risk footer */}
-      <div className="mt-auto rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-4">
+      <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card)] p-3">
         <div className="flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
             <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
           </svg>
-          <p className="text-xs font-semibold">Risk reminder</p>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-wider">Risk reminder</p>
         </div>
-        <p className="mt-2 text-xs leading-5 text-slate-500">
-          Educational market research only — not financial advice.
-        </p>
+        <p className="mt-2 text-[11px] leading-4 text-slate-500">Educational research only — not financial advice.</p>
       </div>
     </aside>
   );
@@ -201,56 +177,57 @@ export function MobileNav({ open, onClose }: { open: boolean; onClose: () => voi
 
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-3 px-2" onClick={onClose}>
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)] text-lg font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--accent)]/40 bg-[var(--accent-soft)] text-lg font-bold text-[var(--accent)] transition-transform duration-300 group-hover:scale-105">
             M
           </div>
           <div>
-            <p className="text-lg font-bold tracking-tight">MacroMind FX</p>
-            <p className="text-xs font-medium text-slate-500">Forex intelligence</p>
+            <p className="text-[15px] font-bold tracking-tight">MacroMind <span className="text-[var(--accent)]">FX</span></p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">Market intelligence</p>
           </div>
         </Link>
 
-        {/* Nav */}
-        <nav className="mt-8 flex-1 space-y-1 overflow-y-auto">
-          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                aria-current={active ? "page" : undefined}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-[var(--accent)]/15"
-                    : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
-                }`}
-              >
-                <span className={`transition-colors duration-200 ${active ? "text-[var(--accent)]" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
-                  {item.icon}
-                </span>
-                {item.label}
-                {active && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-                )}
-              </Link>
-            );
-          })}
+        <nav className="mt-8 flex-1 space-y-5 overflow-y-auto" aria-label="Mobile navigation links">
+          {Array.from(new Set(navItems.map((item) => item.group))).map((group) => (
+            <div key={group}>
+              <p className="px-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{group}</p>
+              <div className="space-y-1">
+                {navItems.filter((item) => item.group === group).map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      aria-current={active ? "page" : undefined}
+                      className={`group relative flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition-all duration-200 ${
+                        active
+                          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                          : "text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      {active && <span className="absolute left-0 h-5 w-0.5 rounded-full bg-[var(--accent)]" />}
+                      <span className={`transition-colors duration-200 ${active ? "text-[var(--accent)]" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                      {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
-        {/* Risk footer */}
-        <div className="mt-auto rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-4">
-          <div className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
-              <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
-            </svg>
-            <p className="text-xs font-semibold">Risk reminder</p>
-          </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Educational market research only — not financial advice.
-          </p>
+      <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card)] p-3">
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500">
+            <path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
+          </svg>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-wider">Risk reminder</p>
         </div>
+        <p className="mt-2 text-[11px] leading-4 text-slate-500">Educational research only — not financial advice.</p>
+      </div>
       </aside>
     </>
   );
@@ -275,7 +252,7 @@ export function PageShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <section className={`min-h-screen lg:pl-72 ${ready ? "transition-colors duration-300" : ""}`}>
+    <section className={`min-h-screen lg:pl-64 ${ready ? "transition-colors duration-300" : ""}`}>
       <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       {/* Header */}

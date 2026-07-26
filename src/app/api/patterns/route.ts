@@ -1,14 +1,39 @@
 import { NextResponse } from "next/server";
 import { callAI } from "../ai-provider";
 
-// Yahoo chart API doesn't support XAUUSD=X/XAGUSD=X — use futures for metals
+const PATTERN_SYMBOLS = new Set(["XAU/USD", "BTC/USD", "EUR/USD"]);
+
 const YAHOO_SYMBOLS: Record<string, string> = {
-  "XAU/USD": "GC=F", "XAG/USD": "SI=F", "EUR/USD": "EURUSD=X",
-  "GBP/USD": "GBPUSD=X", "USD/JPY": "USDJPY=X", "USD/CHF": "USDCHF=X",
-  "AUD/USD": "AUDUSD=X", "USD/CAD": "USDCAD=X", "BTC/USD": "BTC-USD", "ETH/USD": "ETH-USD",
+  "XAU/USD": "GC=F",
+  "BTC/USD": "BTC-USD",
+  "EUR/USD": "EURUSD=X",
 };
 
 type Candle = { open: number; high: number; low: number; close: number; volume: number };
+
+async function fetchGoldSpotPrice(): Promise<number | null> {
+  try {
+    const res = await fetch("https://api.gold-api.com/price/XAU", { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.price === "number" ? data.price : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeCandlesToSpot(candles: Candle[], spotPrice: number) {
+  const futuresPrice = candles.at(-1)?.close;
+  if (!futuresPrice) return candles;
+  const ratio = spotPrice / futuresPrice;
+  return candles.map((candle) => ({
+    ...candle,
+    open: candle.open * ratio,
+    high: candle.high * ratio,
+    low: candle.low * ratio,
+    close: candle.close * ratio,
+  }));
+}
 
 async function fetchHistory(yahooSymbol: string): Promise<{ candles: Candle[]; currentPrice: number } | null> {
   try {
@@ -159,8 +184,12 @@ function detectTrend(candles: Candle[]) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const symbol = searchParams.get("symbol") ?? "XAU/USD";
-  const yahooSymbol = YAHOO_SYMBOLS[symbol] ?? "GC=F";
+  const requestedSymbol = searchParams.get("symbol") ?? "XAU/USD";
+  if (!PATTERN_SYMBOLS.has(requestedSymbol)) {
+    return NextResponse.json({ data: { error: "Pattern analysis is currently limited to Gold, Bitcoin, and EUR/USD." } }, { status: 400 });
+  }
+  const symbol = requestedSymbol;
+  const yahooSymbol = YAHOO_SYMBOLS[symbol];
 
   try {
     const history = await fetchHistory(yahooSymbol);
@@ -168,7 +197,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ data: { error: "Could not fetch historical data for pattern analysis." } }, { status: 502 });
     }
 
-    const { candles, currentPrice } = history;
+    let { candles, currentPrice } = history;
+    let marketSource = "Yahoo Finance spot history";
+    if (symbol === "XAU/USD") {
+      const spotPrice = await fetchGoldSpotPrice();
+      if (!spotPrice) {
+        return NextResponse.json({ data: { error: "Gold spot price is unavailable, so futures-derived levels are not being shown as spot analysis." } }, { status: 502 });
+      }
+      candles = normalizeCandlesToSpot(candles, spotPrice);
+      currentPrice = spotPrice;
+      marketSource = "Gold API spot price + GC futures structure normalized to spot";
+    }
     const highs = findSwingHighs(candles);
     const lows = findSwingLows(candles);
     const { supportLevels, resistanceLevels } = detectSupportResistance(candles, currentPrice);
@@ -244,7 +283,9 @@ Return JSON: {"0":"note for pattern 0","1":"note for pattern 1",...}`;
         trendStrength: trendInfo.trendStrength,
         currentPrice: Number(currentPrice.toFixed(2)),
         computedAt: new Date().toISOString(),
-        source: aiProviderName ? `Algorithmic detection + AI (${aiProviderName})` : "Algorithmic detection",
+        source: aiProviderName
+          ? `${marketSource} + algorithmic detection + AI (${aiProviderName})`
+          : `${marketSource} + algorithmic detection`,
       },
     });
   } catch {

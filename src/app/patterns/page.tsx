@@ -5,6 +5,8 @@ import { Card, PageShell } from "../components";
 import { AssetIcon, nameMap, formatPrice } from "../asset-icon";
 import type { PatternResult } from "../types";
 
+const PATTERN_SYMBOLS = ["XAU/USD", "BTC/USD", "EUR/USD"] as const;
+
 const directionColors: Record<string, string> = {
   bullish: "bg-emerald-50 text-emerald-700 dark:bg-emerald-50/10 dark:text-emerald-400",
   bearish: "bg-red-50 text-red-600 dark:bg-red-50/10 dark:text-red-400",
@@ -59,7 +61,7 @@ export default function PatternsPage() {
                 onChange={(e) => setSymbol(e.target.value)}
                 className="rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-3 py-2 text-sm font-medium outline-none transition-colors focus:border-[var(--accent)]"
               >
-                {Object.keys(nameMap).map((sym) => (
+                {PATTERN_SYMBOLS.map((sym) => (
                   <option key={sym} value={sym}>{sym} — {nameMap[sym]}</option>
                 ))}
               </select>

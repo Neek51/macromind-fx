@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 20, 2026 (fixed strategy alerts + Telegram config persistence on Vercel — moved from server-side file storage to localStorage since Vercel filesystem is read-only; strategy-config API route no longer used for persistence; all alert config now survives page refresh on Vercel)
+**Last Updated:** July 26, 2026 (reverted the proposed wide Overview/`PageShell` experiment; all pages again use the established 1280px aligned header/content container, while the session, checklist, calendar, and trade-assistant improvements remain intact)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -63,15 +63,15 @@ This document is a comprehensive, in-depth record of every project, file, and re
 
 ### 2.1 What It Is
 
-MacroMind FX is an AI-powered forex intelligence dashboard. It tracks **10 assets** — Gold (XAU/USD), Silver (XAG/USD), EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, Bitcoin (BTC/USD), and Ethereum (ETH/USD) — with:
+MacroMind FX remains a broad market-research codebase, but its primary Overview is now intentionally focused on **three instruments** — Gold Spot (XAU/USD), Bitcoin Spot (BTC/USD), and EUR/USD Spot. Nasdaq is deferred until a broker-specific execution instrument/feed and contract specification are known. Existing advanced routes and legacy multi-asset components remain preserved.
 
-- **Live market prices** — real-time data from Yahoo Finance + gold-api.com (no API key needed)
-- **Currency Strength Meter** — real-time heatmap showing which currencies are strongest/weakest, calculated by aggregating % changes across all forex pairs
-- **Correlation Matrix** — color-coded 10×10 relationship grid showing which assets usually move together or opposite, with strongest same-direction and hedge-risk callouts
-- **Position Size Calculator** — full risk management tool: input account size, risk %, entry & stop loss → get lot size, pip value, units, and potential loss
+- **Live market prices** — verified spot references for Gold, Bitcoin, and EUR/USD with explicit source, instrument type, update time, and fallback status
+- **Trade Safety & Setup Assistant** — focused beginner workflow with verified-event safety gate, objective candle-derived levels, trend context, confirmation checklist, and broker-safe dollar-risk/R:R planning
+- **Correlation Matrix** — implemented but temporarily hidden from Overview; its live Pearson-correlation pipeline, preset fallback, component, and API remain intact
+- **Position Size Calculator** — implemented but temporarily hidden from Overview; the full risk management component remains available for future restoration
 - **Market Sessions Clock** — live status of Tokyo, London & New York trading sessions with a 24h UTC timeline, open/close countdown, and overlap detection
 - **AI Daily Market Outlook** — auto-generated daily summary with overall bias (bullish/bearish/neutral), key levels, events to watch, opportunities, risks, and top movers. Uses AgentRouter (OpenAI-compatible) with live price + news + calendar data
-- **AI Pattern Detection** — algorithmic chart pattern detection (double top, double bottom, head and shoulders, trend analysis) with AI-generated educational notes. Fetches 6 months of Yahoo Finance daily candles, computes swing highs/lows, support/resistance, and trend
+- **AI Pattern Detection** — focused on Gold, Bitcoin, and EUR/USD only. Bitcoin/EURUSD use Yahoo spot history; Gold uses the same Gold API spot price as Overview while GC futures candles are ratio-normalized only for historical structure, with the mixed-source calculation explicitly labelled
 - **Smart Price Alerts** — set price alerts for any asset, monitored every 5 seconds against live prices, with browser notifications. Fully client-side (localStorage), no account needed
 - **AI News Impact Analyzer** — paste any news headline or tweet, get AI-powered market sentiment analysis (bullish/bearish, risk level, affected assets, confidence score)
 - **Economic Calendar** — real upcoming macro events from ForexFactory's free JSON feed
@@ -85,8 +85,9 @@ MacroMind FX is an AI-powered forex intelligence dashboard. It tracks **10 asset
 macromind-fx/
 ├── src/app/
 │   ├── layout.tsx              ← Root layout: Geist font, ThemeProvider, anti-flash script
-│   ├── page.tsx                ← Dashboard home (~300 lines, extracted from ~1250)
-│   ├── components.tsx          ← Sidebar, MobileNav, PageShell, Card components (8 nav items)
+│   ├── page.tsx                ← Thin route wrapper for the focused Trade Safety Assistant
+│   ├── trade-assistant-dashboard.tsx ← Three-instrument safety gate, objective levels, checklist, and risk plan
+│   ├── components.tsx          ← Sidebar, MobileNav, PageShell, Card components (5 visible nav items)
 │   ├── types.ts                ← Shared TypeScript types (LiveAsset, CalendarEvent, CorrelationData, MarketOutlook, PatternResult, PriceAlert, etc.)
 │   ├── asset-icon.tsx          ← AssetIcon component + LOGO_URLS + nameMap + formatPrice + timeAgo
 │   ├── currency-strength-meter.tsx ← Currency Strength Meter component
@@ -103,7 +104,7 @@ macromind-fx/
 │   ├── api/
 │   │   ├── prices/route.ts     ← Live market data (Yahoo Finance + gold-api.com + fallbacks)
 │   │   ├── correlation/route.ts ← Live Pearson correlation matrix from Yahoo historical daily closes
-│   │   ├── calendar/route.ts   ← Economic calendar (ForexFactory free JSON feed, this week + weekend fallback)
+│   │   ├── calendar/route.ts   ← Verified aggregation: ForexFactory + official Federal Reserve FOMC + BLS CPI/Employment schedules
 │   │   ├── news/route.ts       ← Yahoo Finance RSS → rss2json (no key, real-time forex news)
 │   │   ├── analyze/route.ts    ← AI sentiment analysis (shared 2-tier fallback: Groq → AgentRouter)
 │   │   ├── journal-review/route.ts ← AI trade review (shared 2-tier fallback)
@@ -115,7 +116,8 @@ macromind-fx/
 │   │   └── backtest/
 │   │       └── parse-pine/route.ts ← Pine Script AI parser API (reads Pine Script code, returns parsed config JSON)
 │   ├── lib/
-│   │   └── backtest.ts        ← Backtest engine (EMA crossover + RSI pullback, ATR SL/TP, bar-by-bar simulation)
+│   │   ├── backtest.ts        ← Backtest engine plus reusable EMA/ATR/RSI calculations
+│   │   └── trade-assistant.ts ← Deterministic safety, market-context, and broker-safe risk helpers
 │   ├── htf/ (outlook, patterns, alerts etc.)
 │   ├── outlook/
 │   │   ├── layout.tsx          ← Metadata for Outlook page
@@ -214,14 +216,13 @@ The frontend polls `/api/prices` every **5 seconds**, `/api/chart` every **60 se
 - Falls back gracefully if no AI keys configured (shows live data with placeholder text)
 
 **AI Pattern Detection** (`/api/patterns`):
-- **Algorithmic detection** of chart patterns from 6 months of Yahoo Finance daily candles
-- Uses **futures symbols** for metals: `GC=F` (gold), `SI=F` (silver) — Yahoo's chart API returns 404 for `XAUUSD=X`/`XAGUSD=X`
-- Detects: Double Top, Double Bottom, Head and Shoulders (all via swing high/low analysis with 5-bar lookback)
-- Always detects: Trend (uptrend/downtrend/sideways with 50-day SMA comparison + RSI), Support/Resistance levels (3 nearest)
-- Each pattern includes: name, type, confidence %, direction, description, entryZone, invalidation level
-- AI educational notes via **multi-provider fallback**: tries AgentRouter first, falls back to Groq (since AgentRouter key may be invalid/expired)
-- The Patterns page: symbol selector for all 10 assets, current price + trend + strength cards, detected patterns grid with confidence bars, support/resistance level cards with % distance
-- Environment variables: same as Outlook (AgentRouter)
+- Available only for the focused instruments: Gold Spot, Bitcoin Spot, and EUR/USD Spot; unsupported API symbols are rejected rather than silently defaulting to Gold
+- Uses 6 months of Yahoo Finance daily candles for algorithmic swing, support/resistance, and trend detection
+- Bitcoin and EUR/USD use matching Yahoo spot history. Yahoo does not expose usable XAU/USD spot candles, so Gold uses `GC=F` only as a historical-structure proxy; candles are ratio-normalized to the current Gold API spot price before levels/patterns are calculated
+- The Gold current price therefore matches the Overview Gold API feed, and the Patterns source label explicitly discloses `Gold API spot price + GC futures structure normalized to spot`
+- Detects Double Top, Double Bottom, Head and Shoulders, Trend, and nearest Support/Resistance levels
+- AI educational notes explain deterministic patterns but do not supply the current market price
+- The Patterns page selector exposes only XAU/USD, BTC/USD, and EUR/USD
 
 ### 2.4.1 Smart Price Alerts (Client-Side)
 
@@ -253,9 +254,9 @@ The News AI page auto-analyzes the latest headline on load and caches results in
 
 ### 2.6 Economic Calendar
 
-The `/api/calendar` route fetches from `https://nfs.faireconomy.media/ff_calendar_thisweek.json` — a free, no-key JSON feed from ForexFactory. Returns all events for the current week sorted by date. Each event has: `title`, `country`, `date`, `impact` (High/Medium/Low/Holiday), `forecast`, `previous`.
+The `/api/calendar` route now aggregates three verified sources: ForexFactory's current-week JSON feed for broad macro coverage, the official Federal Reserve FOMC calendar for future policy meetings, and the official BLS iCalendar feed for CPI and Employment Situation schedules. Events are normalized with source, source URL, status, group, actual/forecast/previous fields, sorted, and deduplicated. Employment Situation is presented as the grouped NFP + Unemployment risk event. The former dynamically shifted hardcoded calendar events were removed and are never shown as live data.
 
-The Calendar page displays upcoming events in a clean, full-width table layout (no horizontal split). Clicking "Analyze" on any high or medium impact event slides in a premium right-side detail drawer backed by a blurred backdrop overlay, loading the AI Pre-Release Playbook scenarios with custom-wrapped trade triggers (Trigger Zone, Stop Loss, Take Profit) dynamically fetched with a server-side spot price fallback check.
+The Calendar page clearly labels event sources and unavailable actual values. If verified sources fail, it shows an explicit unavailable warning instead of fabricated upcoming releases. The focused Trade Safety Gate blocks new setups from 30 minutes before until 15 minutes after verified high-impact events.
 
 ### 2.7 Design System
 
@@ -294,11 +295,11 @@ The Calendar page displays upcoming events in a clean, full-width table layout (
 
 ### 2.8 Components
 
-**Sidebar:** Fixed left sidebar (72px width, hidden on mobile). Contains logo "MacroMind FX", **8 nav items** (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal, Backtest), and a risk reminder card at the bottom. Active route is highlighted with accent color.
+**Sidebar:** Fixed 256px left sidebar (hidden on mobile) with a compact grouped trading-terminal layout. It contains the MacroMind FX identity, feed-source strip, **5 visible nav items** grouped as Market (Overview, Outlook, Patterns) and Intelligence (News AI, Calendar), plus a risk reminder. Alerts, Trade Journal, and Backtest are temporarily hidden from navigation; their `/alerts`, `/journal`, and `/backtest` routes remain intact and directly accessible. The active route uses an accent surface, rail, and status dot.
 
-**MobileNav:** Slide-out drawer for mobile/tablet (visible below `lg` breakpoint). Triggered by a hamburger button in the `PageShell` header. Includes a backdrop overlay (click to close), body scroll lock while open, auto-close on route change, and reuses the same `navItems` array as the Sidebar. Contains the same logo, nav links, and risk footer as the desktop Sidebar.
+**MobileNav:** Slide-out drawer for mobile/tablet (visible below `lg` breakpoint). Triggered by a hamburger button in the `PageShell` header. Includes a backdrop overlay (click to close), body scroll lock while open, auto-close on route change, and reuses the same grouped `navItems` array as the Sidebar. It therefore shows the same 5 visible links while preserving hidden routes for direct access.
 
-**PageShell:** Main layout wrapper. Sticky header with hamburger button (mobile only), page title, label, theme toggle (sun/moon switch), and action button. Content area max-width 6xl with responsive padding.
+**PageShell:** Main layout wrapper. Sticky header with hamburger button (mobile only), page title, label, theme toggle (sun/moon switch), and action button. Header and content use the established 1280px (`max-w-7xl`) aligned container with responsive padding.
 
 **Card:** Rounded-2xl (16px) with border, white/dark background, shadow-sm, hover:shadow-md transition.
 
@@ -308,9 +309,13 @@ The Calendar page displays upcoming events in a clean, full-width table layout (
 
 **Correlation Matrix** (`correlation-matrix.tsx`): Full-width risk overlay card. Shows a 10×10 matrix for all tracked assets, using a diverging red/neutral/green color scale with numeric labels in every cell. Positive values mean assets moved in the same direction over the selected historical window; negative values mean they moved opposite. Side callouts highlight the strongest same-direction exposure and strongest hedge relationship. Current implementation is live/statistical: `/api/correlation` fetches 3 months of Yahoo Finance daily closes, calculates daily returns, runs Pearson correlation for every pair, and refreshes on the frontend every 15 minutes. If Yahoo historical data fails, the UI falls back to preset relationship estimates (stored in the component) and labels the matrix as "Preset fallback".
 
-**Position Size Calculator** (`position-size-calculator.tsx`): Interactive risk management tool. Inputs: pair selector (all 10 assets), account size ($), risk %, entry price (with "use live" button to auto-fill from current market price), stop loss price. Outputs: position size (lots + units), risk amount ($), stop distance (pips), pip value per lot ($), potential loss ($). Uses pair-specific pip sizes (0.0001 for most forex, 0.01 for JPY pairs and metals, $1 for crypto) and contract sizes (100,000 for forex, 100 oz for gold, 5,000 oz for silver, 1 unit for crypto).
+**Position Size Calculator** (`position-size-calculator.tsx`): Implemented but temporarily hidden from the Overview as part of the beginner-focused simplification. The component remains intact for future restoration. Inputs: pair selector (all 10 assets), account size ($), risk %, entry price (with "use live" button to auto-fill from current market price), stop loss price. Outputs: position size (lots + units), risk amount ($), stop distance (pips), pip value per lot ($), potential loss ($). Uses pair-specific pip sizes (0.0001 for most forex, 0.01 for JPY pairs and metals, $1 for crypto) and contract sizes (100,000 for forex, 100 oz for gold, 5,000 oz for silver, 1 unit for crypto).
 
-**Market Sessions Clock** (`market-sessions-clock.tsx`): Live trading session tracker. Shows Tokyo (00:00–09:00 UTC), London (08:00–17:00 UTC), and New York (13:00–22:00 UTC) sessions with open/closed status, countdown to next open/close, and a 24-hour UTC timeline bar with colored session zones and a current-time marker. Updates every 60 seconds. Also includes **Institutional Session Profiles** (Tokyo Accumulation, London Manipulation, New York Distribution) explaining how pro traders monitor high/low sweeps and liquidity during overlaps.
+**Temporarily hidden Overview tools (July 25, 2026):** The Confluence Synthesizer, Position Size Calculator, AI Risk Score, Institutional Macro Bias Matrix, and Correlation Matrix/Risk Overlay are not rendered on the current beginner-focused Overview. Their underlying components, calculations, and data pipelines remain intact for future restoration. The Economic Calendar preview remains full-width. Live news and correlation fetching are currently preserved even while their Overview cards are hidden.
+
+**Market Sessions Clock** (`market-sessions-clock.tsx`): Rendered directly in the focused Overview immediately after the Trade Safety Gate. Shows Tokyo (00:00–09:00 UTC), London (08:00–17:00 UTC), and New York (13:00–22:00 UTC) windows with UTC/local clocks and a 24-hour timeline. The former static Institutional Session Profiles were replaced with real hourly-candle metrics for the selected instrument: session high, low, range, completion state, and prior-session boundary sweep. Bitcoin is treated as a 24/7 market on weekends, with sessions labelled as liquidity windows rather than open/closed exchanges. Gold/EURUSD retain forex-weekend closure behavior. BTC and EUR/USD use matching spot-market candles; Gold session structure uses the explicitly labelled `GC=F` futures proxy because the free Gold spot endpoint does not provide intraday candles. If candle data fails, the UI shows unavailable instead of a fabricated session claim.
+
+**Entry fill interaction:** The Verified Instrument card no longer displays visible provider/update/status lines. `Use current price as entry` now fills the risk-plan Entry input, smoothly scrolls to it, focuses/selects the value, and displays temporary confirmation text. Backend source, freshness, and fallback metadata remain active for Safety Gate decisions.
 
 **TradingView Chart (`tradingview-chart.tsx`):** Free embedded TradingView Advanced Chart widget. Replaces the old basic bar chart. Features: candlestick chart with 15-minute default interval, RSI + Moving Average studies auto-loaded, side toolbar enabled, dark/light theme synced with dashboard, pair selector dropdown for all 10 assets. Symbol mapping: OANDA:XAUUSD, OANDA:XAGUSD, FX:EURUSD, FX:GBPUSD, FX:USDJPY, FX:USDCHF, FX:AUDUSD, FX:USDCAD, BINANCE:BTCUSDT, BINANCE:ETHUSDT. Script loaded dynamically via `useEffect` with singleton loading pattern to avoid duplicate script tags. **Bug fix (July 18):** `widget.remove()` calls wrapped in `try/catch` to prevent "Cannot read properties of null (reading 'parentNode')" crash when navigating away from the Overview page (TradingView's tv.js tried to access a container DOM node that React had already removed during navigation).
 
@@ -331,12 +336,12 @@ The Calendar page displays upcoming events in a clean, full-width table layout (
 - **TradingView navigation crash fix:** `widget.remove()` calls in `tradingview-chart.tsx` wrapped in `try/catch` — TradingView's tv.js threw "Cannot read properties of null (reading 'parentNode')" during React cleanup when navigating away from Overview, escaping all error boundaries → "This page couldn't load"
 - **3 new pages added:** `/outlook` (AI Daily Market Outlook), `/patterns` (AI Pattern Detection), `/alerts` (Smart Price Alerts)
 - **2 new API routes:** `/api/outlook` (AgentRouter AI daily summary), `/api/patterns` (algorithmic pattern detection + AI notes)
-- **Sidebar expanded:** 4 → 8 nav items (Overview, Outlook, Patterns, Alerts, News AI, Calendar, Trade Journal, Backtest)
+- **Sidebar history:** Expanded from 4 to 8 items when Outlook, Patterns, Alerts, Journal, and Backtest were introduced; the current beginner-focused navigation intentionally exposes 5 items while `/alerts`, `/journal`, and `/backtest` remain directly accessible.
 - **3 new types:** `MarketOutlook`, `PatternResult`, `PriceAlert` added to `types.ts`
 - **AI provider split:** Groq for existing AI features (news, journal), AgentRouter for new AI features (outlook, patterns) — per user preference
 - **Pattern Detection Yahoo symbol fix:** Changed `XAUUSD=X`/`XAGUSD=X` → `GC=F`/`SI=F` (futures) for historical data — Yahoo's chart API returns 404 for spot metal symbols
 - **AI multi-provider fallback:** Both `/api/outlook` and `/api/patterns` now try AgentRouter first, then fall back to Groq — AgentRouter key was returning "unauthorized client detected", so Groq ensures AI features still work
-- **Dashboard Information Hierarchy Reorganized:** Promoted the Confluence Synthesizer from position #8 (buried at the bottom) to position #2 (right after Live Market Prices) as the "AI Confluence Verdict" — now the first thing traders see after live prices. Added a "Deep Tools" section header before the Correlation Matrix to visually zone the dashboard into: **Live Snapshot** (prices + macro bias) → **AI Verdict** (confluence synthesizer) → **Deep Tools** (correlation, sessions, position calc) → **Risk** (calendar + risk score). The AI verdict is now front-and-center instead of buried under 6 sections of raw data.
+- **Dashboard Information Hierarchy History:** The Confluence Synthesizer was previously promoted near the top as the "AI Confluence Verdict," with deeper tools and risk sections grouped below it. As of July 25, 2026, the Synthesizer, Position Size Calculator, and AI Risk Score are temporarily hidden from Overview to reduce beginner overload; their implementations remain intact.
 
 - **Price Flash Effect:** Added Bloomberg/TradingView-style price flash — when a live price ticks up, the price cell briefly flashes green (emerald); when it ticks down, it flashes red. Uses `useRef` to track previous prices per asset, computes direction on each 5-second poll, applies a CSS `@keyframes flashUp`/`flashDown` animation, and clears after 1 second. Applied to both the 4 featured asset cards and the watchlist table. Added `tabular-nums` to featured card prices so digits stay aligned and the layout doesn't jitter when prices change.
 
@@ -344,7 +349,7 @@ The Calendar page displays upcoming events in a clean, full-width table layout (
 - **Theme Switcher simplified:** Replaced the sliding toggle (left/right swipe) with a simple click-to-toggle icon button — shows a moon icon in light mode (click → dark) and a sun icon in dark mode (click → light). One click, instant switch, no swipe.
 
 - **Theme Switcher anti-flash fix:** Refactored the theme switch knob translation to use Tailwind classes `translate-x-0 dark:translate-x-[28px]` rather than inline JS styles, aligning with the inline `<head>` script to prevent layout flashes on dark mode refreshes.
-- **Dynamic Institutional Macro Bias Matrix:** Added dynamic keyword scanning of merged RSS news streams to compute positive/negative sentiment weights for major assets (USD, EUR, GBP, Gold), rendering them in an institutional matrix on the Dashboard.
+- **Dynamic Institutional Macro Bias Matrix:** Implemented live-news keyword scoring for USD, EUR, GBP, and Gold; the Overview card is currently hidden behind the reversible advanced-analysis visibility flag, while its calculation logic remains available for future restoration.
 - **Proactive Economic News Warnings:** Added high-impact event window scanning that flashes warnings when a high-impact calendar event is scheduled within the next 60 minutes or occurred in the past 15 minutes.
 - **Open Trade Correlation Alerts:** Integrated a pre-trade correlation lookup inside the Trade Journal that automatically scans active open positions and flags currency concentration risks before new trades are saved.
 - **Outlook API Memory Optimization:** Replaced hardcoded localhost fetch loops inside `api/outlook/route.ts` with direct function imports and executions to support clean deployment and eliminate port conflicts.
@@ -354,7 +359,7 @@ The Calendar page displays upcoming events in a clean, full-width table layout (
 - **Confluence Synthesizer (4-Lane Verdict Engine):** Implemented a custom analyzer widget (`src/app/confluence-synthesizer.tsx`) on the home dashboard that combines Technical, Flow, Narrative, and Macro lanes into an aligned trade plan with stop-loss and take-profit targets (1:2 R:R). Removed the Live TradingView Chart card and expanded the Synthesizer to render at full-width.
 - **Interactive PageShell Action Buttons:** Resolved usability defects in the global `<PageShell />` component header buttons (e.g., "Re-scan", "Refresh", "Add Trade"). Converted the hardcoded markup into dynamic trigger elements supporting `actionHref` redirects and custom `onActionClick` handler callbacks with `cursor-pointer` mouse states.
 - **Fast-First AI Route Prioritization (Groq first):** Swapped model processing priority in the AI routes (`api/outlook/route.ts` and `api/patterns/route.ts`) to prioritize Groq (Llama 70B) first for near-instant 1-second load times, falling back to GitHub Models (GPT-4o) when limits are exceeded. Also enriched patterns route to track and output the active model provider.
-- **Calendar API Timeout & Fallback Expansion (Dynamic Weekday Rolling Scheduler):** Implemented a strict 2.5-second fetch abort timeout and a 30-minute next-revalidation cache on the external economic calendar API call to prevent server hangs. Upgraded the fallback events database in `src/app/data.ts` to dynamically calculate calendar event dates relative to the active date (`Date.now()`), automatically steering all mock events to weekdays (avoiding weekends) so that a realistic mix of both completed past events and active future/upcoming events is always displayed. Aligned all UI tab counts on the calendar page to strictly measure upcoming events, resolving list mismatch indicators.
+- **Calendar data-integrity rebuild (July 26):** Removed the dynamic weekday-rolling sample calendar that could present fabricated Retail Sales, Jobless Claims, Fed speech, and GDP rows as upcoming releases. Calendar coverage now combines ForexFactory current-week events with official Federal Reserve FOMC dates and official BLS CPI/Employment schedules, with source/status labels and honest missing-value handling.
 - **Pine Script AI Configurator & Custom Strategy Engine:** Created a visual code uploader and paste editor inside the Backtest page, supported by a server-side AI parsing endpoint (`/api/backtest/parse-pine`). This parses raw TradingView Pine Script strategy files, maps logic triggers to structured `RuleCondition` objects (`crosses_above`, `crosses_below`, etc.), and updates the backtesting simulator settings dynamically.
 
 ### 2.9 TradingView Logo URLs
@@ -918,7 +923,7 @@ Several `resume.text` files exist across the workspace. These contain session to
 
 | Project | Type | Status | Key Achievement |
 |---------|------|--------|-----------------|
-| **MacroMind FX** | Next.js forex dashboard | 🟢 Active | 10 live pairs + currency strength meter + position size calculator + market sessions clock + AI news analysis + economic calendar — all free, no API keys |
+| **MacroMind FX** | Next.js trade-safety assistant | 🟢 Active | Focused Gold/BTC/EURUSD workflow with verified event safety, objective levels, source freshness, setup checks, and broker-safe risk planning |
 | **Fx Ultimate** | Trading strategy (3 platforms) | 🟡 Running | Backtested 6 modes on Python, deployed Pine Script on TradingView, MQL5 EA for MT5 |
 | **Design Fetcher** | Design extraction tool | 🟡 In Progress | Working extraction with Puppeteer, known issues being tracked |
 | **P2P File Share** | WebRTC file transfer | 🔴 Planning | Full plan documented, no code yet |

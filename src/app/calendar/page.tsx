@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card, PageShell } from "../components";
-import { events as fallbackEvents } from "../data";
 
 type CalendarEvent = {
   title: string;
@@ -11,6 +10,11 @@ type CalendarEvent = {
   impact: string;
   forecast: string;
   previous: string;
+  actual?: string;
+  source?: string;
+  sourceUrl?: string;
+  group?: string;
+  status?: "scheduled" | "released";
 };
 
 const flagMap: Record<string, string> = {
@@ -114,17 +118,10 @@ const countryAssetMap: Record<string, string> = {
 };
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>(fallbackEvents.map(e => ({
-    title: e.event,
-    country: e.country,
-    date: e.date,
-    impact: e.impact,
-    forecast: e.forecast,
-    previous: e.previous,
-  })));
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"upcoming" | "high" | "medium" | "released">("upcoming");
-  const [isFallback, setIsFallback] = useState(true);
+  const [calendarAvailable, setCalendarAvailable] = useState(true);
 
   // Playbook states
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
@@ -148,10 +145,12 @@ export default function CalendarPage() {
         const json = await res.json();
         if (json.data && json.data.length > 0) {
           setEvents(json.data);
-          setIsFallback(false);
+          setCalendarAvailable(true);
+        } else {
+          setCalendarAvailable(false);
         }
       } catch {
-        // keep fallback
+        setCalendarAvailable(false);
       } finally {
         setLoading(false);
       }
@@ -217,75 +216,10 @@ export default function CalendarPage() {
     }
   }
 
-  const getUpcomingEventsOnly = () => {
-    const threshold = currentTime ? currentTime - 30 * 60 * 1000 : 0; // 30 minutes ago
+  const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const threshold = currentTime ? currentTime - 30 * 60 * 1000 : 0;
 
-    if (isFallback) {
-      const upcoming = events.filter(e => {
-        if (!currentTime) return true;
-        return new Date(e.date).getTime() >= threshold;
-      });
-
-      if (upcoming.length < 5) {
-        const fallbackUpcoming = fallbackEvents
-          .map(e => ({
-            title: e.event,
-            country: e.country,
-            date: e.date,
-            impact: e.impact,
-            forecast: e.forecast,
-            previous: e.previous,
-          }))
-          .filter(e => {
-            if (!currentTime) return true;
-            return new Date(e.date).getTime() >= threshold;
-          });
-
-        fallbackUpcoming.forEach(fb => {
-          const isDuplicate = upcoming.some(
-            u => u.title === fb.title && Math.abs(new Date(u.date).getTime() - new Date(fb.date).getTime()) < 3600000
-          );
-          if (!isDuplicate) {
-            upcoming.push(fb);
-          }
-        });
-      }
-
-      upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      return upcoming;
-    }
-
-    // Live mode — show all events, but supplement with fallback if no upcoming events
-    const sorted = [...events];
-    sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Check if we have any upcoming events in live data
-    const hasUpcoming = sorted.some(e => currentTime ? new Date(e.date).getTime() >= threshold : true);
-
-    if (!hasUpcoming && currentTime) {
-      // Live feed only has past events (e.g., Sunday after Friday close)
-      // Supplement with dynamic fallback upcoming events
-      const fallbackUpcoming = fallbackEvents
-        .map(e => ({
-          title: e.event,
-          country: e.country,
-          date: e.date,
-          impact: e.impact,
-          forecast: e.forecast,
-          previous: e.previous,
-        }))
-        .filter(e => new Date(e.date).getTime() >= threshold)
-        .filter(fb => !sorted.some(u => u.title === fb.title && Math.abs(new Date(u.date).getTime() - new Date(fb.date).getTime()) < 3600000));
-
-      return [...sorted, ...fallbackUpcoming];
-    }
-
-    return sorted;
-  };
-
-  const upcomingEventsOnly = getUpcomingEventsOnly();
-
-  const filtered = upcomingEventsOnly.filter(e => {
+  const filtered = sortedEvents.filter(e => {
     const isPast = currentTime ? new Date(e.date).getTime() < currentTime - 30 * 60 * 1000 : false;
     if (filter === "released") {
       return isPast;
@@ -296,47 +230,36 @@ export default function CalendarPage() {
     return true; // filter === "upcoming"
   });
 
-  const totalUpcoming = upcomingEventsOnly.filter(e => {
-    const isPast = currentTime ? new Date(e.date).getTime() < currentTime - 30 * 60 * 1000 : false;
-    return !isPast;
-  }).length;
+  const totalUpcoming = sortedEvents.filter(e => new Date(e.date).getTime() >= threshold).length;
 
-  const highUpcomingCount = upcomingEventsOnly.filter(e => {
-    const isPast = currentTime ? new Date(e.date).getTime() < currentTime - 30 * 60 * 1000 : false;
+  const highUpcomingCount = sortedEvents.filter(e => {
+    const isPast = new Date(e.date).getTime() < threshold;
     return !isPast && e.impact === "High";
   }).length;
 
-  const mediumUpcomingCount = upcomingEventsOnly.filter(e => {
-    const isPast = currentTime ? new Date(e.date).getTime() < currentTime - 30 * 60 * 1000 : false;
+  const mediumUpcomingCount = sortedEvents.filter(e => {
+    const isPast = new Date(e.date).getTime() < threshold;
     return !isPast && (e.impact === "High" || e.impact === "Medium");
   }).length;
 
-  const releasedCount = upcomingEventsOnly.filter(e => {
-    const isPast = currentTime ? new Date(e.date).getTime() < currentTime - 30 * 60 * 1000 : false;
-    return isPast;
-  }).length;
-
-  // Check if we're supplementing live data with fallback (weekend scenario)
-  const liveUpcomingCount = isFallback ? 0 : events.filter(e =>
-    currentTime ? new Date(e.date).getTime() >= currentTime - 30 * 60 * 1000 : true
-  ).length;
-  const isSupplemented = !isFallback && liveUpcomingCount < upcomingEventsOnly.length;
+  const releasedCount = sortedEvents.filter(e => new Date(e.date).getTime() < threshold).length;
 
   return (
     <PageShell title="Economic Calendar" label="Calendar" action="Create Alert" actionHref="/alerts">
       <section className="space-y-6">
+        {!calendarAvailable && !loading ? (
+          <Card className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+            <p className="text-sm font-semibold">Verified calendar data is temporarily unavailable. Do not use this calendar for live trading decisions.</p>
+          </Card>
+        ) : null}
         {/* Events table */}
         <Card className="animate-fade-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                {filter === "released" 
-                  ? "Released events" 
-                  : isFallback 
-                  ? "Upcoming events" 
-                  : isSupplemented 
-                  ? "This week + next week preview" 
-                  : "Upcoming weekly events"}
+                {filter === "released"
+                  ? "Released events"
+                  : "Verified scheduled events"}
               </p>
               <h2 className="mt-1 text-xl font-bold">
                 {filter === "released" ? "Weekly releases history" : "Macro releases to watch"}
@@ -549,8 +472,12 @@ export default function CalendarPage() {
                                 <p className="font-bold text-slate-800 dark:text-slate-150 mt-1 text-base">{event.forecast || "—"}</p>
                               </div>
                               <div>
-                                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Previous</p>
-                                <p className="font-bold text-slate-600 dark:text-slate-450 mt-1 text-base">{event.previous || "—"}</p>
+                                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Actual</p>
+                                <p className="font-bold text-slate-800 dark:text-slate-150 mt-1 text-base">{event.actual || "Not released"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Source</p>
+                                <p className="font-bold text-slate-600 dark:text-slate-450 mt-1 text-xs">{event.source || "Unknown"}</p>
                               </div>
                             </div>
                             <div className="mt-4 flex justify-end border-t border-[var(--card-border)] pt-3.5">

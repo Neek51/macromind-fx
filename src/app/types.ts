@@ -6,6 +6,10 @@ export type LiveAsset = {
   percent_change: number;
   high: number;
   low: number;
+  source?: string;
+  instrumentType?: "spot" | "cash-index" | "futures" | "fallback";
+  updatedAt?: string;
+  isFallback?: boolean;
   error?: string;
 };
 
@@ -24,6 +28,11 @@ export type CalendarEvent = {
   impact: string;
   forecast: string;
   previous: string;
+  actual?: string;
+  source?: string;
+  sourceUrl?: string;
+  group?: string;
+  status?: "scheduled" | "released";
 };
 
 export type CorrelationData = {
