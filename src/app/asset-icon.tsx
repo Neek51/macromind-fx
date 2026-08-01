@@ -26,7 +26,8 @@ export const nameMap: Record<string, string> = {
   "ETH/USD": "Ethereum",
 };
 
-export function formatPrice(symbol: string, price: number): string {
+export function formatPrice(symbol: string, price: number | null | undefined): string {
+  if (price === null || price === undefined || typeof price !== "number") return "—";
   if (symbol === "XAU/USD" || symbol === "BTC/USD") return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (symbol === "XAG/USD") return price.toFixed(2);
   if (symbol === "ETH/USD") return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

@@ -162,3 +162,52 @@ export type PriceAlert = {
   triggeredAt: string | null;
   aiContext: string | null;
 };
+
+export type AIPrediction = {
+  symbol: string;
+  bullishProbability: number;
+  bearishProbability: number;
+  predictedMove: string;
+  confidence: "low" | "medium" | "high";
+  keyLevel: string;
+  drivers: Array<{ factor: string; contribution: number }>;
+  sessionInsight: string;
+  reasoning: string;
+  smcFeatures: {
+    trend: "bullish" | "bearish" | "neutral";
+    nearestOB: { price: number; type: "bullish" | "bearish"; description: string } | null;
+    activeFVG: { top: number; bottom: number; type: "bullish" | "bearish" } | null;
+    lastSweep: string | null;
+    inducementLevel: number | null;
+  };
+  suggestedTrade: {
+    direction: "buy" | "sell";
+    entry: number;
+    stopLoss: number;
+    takeProfit: number;
+    riskReward: number;
+  } | null;
+  computedAt: string;
+  model?: string;
+  error?: string;
+};
+
+export type VirtualTrade = {
+  id: string;
+  symbol: string;
+  direction: "buy" | "sell";
+  entry: number;
+  stopLoss: number;
+  takeProfit: number;
+  riskReward: number;
+  reason: string;
+  status: "open" | "closed";
+  pnlPercentage: number | null;
+  pnlAmount: number | null;
+  exitPrice: number | null;
+  closedAt: string | null;
+  createdAt: string;
+  postmortem: string | null;
+  lesson: string | null;
+};
+

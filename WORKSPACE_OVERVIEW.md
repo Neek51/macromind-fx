@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** July 26, 2026 (reverted the proposed wide Overview/`PageShell` experiment; all pages again use the established 1280px aligned header/content container, while the session, checklist, calendar, and trade-assistant improvements remain intact)
+**Last Updated:** August 1, 2026 (Implemented Phase 1, Phase 2, and Phase 3 of the AI Virtual Trade Desk: structured SMC predictions, resampled historical candles, live chart overlays, full-screen horizontal top header navigation rebranded to FX Terminal, localStorage order matching, and fetch HMR safety catches)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -361,6 +361,18 @@ The Calendar page clearly labels event sources and unavailable actual values. If
 - **Fast-First AI Route Prioritization (Groq first):** Swapped model processing priority in the AI routes (`api/outlook/route.ts` and `api/patterns/route.ts`) to prioritize Groq (Llama 70B) first for near-instant 1-second load times, falling back to GitHub Models (GPT-4o) when limits are exceeded. Also enriched patterns route to track and output the active model provider.
 - **Calendar data-integrity rebuild (July 26):** Removed the dynamic weekday-rolling sample calendar that could present fabricated Retail Sales, Jobless Claims, Fed speech, and GDP rows as upcoming releases. Calendar coverage now combines ForexFactory current-week events with official Federal Reserve FOMC dates and official BLS CPI/Employment schedules, with source/status labels and honest missing-value handling.
 - **Pine Script AI Configurator & Custom Strategy Engine:** Created a visual code uploader and paste editor inside the Backtest page, supported by a server-side AI parsing endpoint (`/api/backtest/parse-pine`). This parses raw TradingView Pine Script strategy files, maps logic triggers to structured `RuleCondition` objects (`crosses_above`, `crosses_below`, etc.), and updates the backtesting simulator settings dynamically.
+- **AI Virtual Trade Desk & Paper Trading Engine (August 1, 2026):** Completed the primary phases of the AI Virtual Trade Desk:
+  - Created `/api/ai-prediction` providing structured SMC scanning (Trend, OB, FVG, sweep, IDM) and fundamental analysis.
+  - Implemented `/api/history` intraday resampling (3m, 5m, 15m, 1h, 4h, 1d).
+  - Created `<PredictionChart />` wrapping TradingView `lightweight-charts` with real-time price updates (5s ticks), and canvas overlay lines for entry, target (TP), stop-loss (SL), FVG boundaries, and OB zones.
+  - Rebuilt PageShell layout: removed left sidebar, expanded workspace to fullscreen width (`w-full px-4 md:px-8`), set chart height to 550px, and integrated a horizontal top header navigation rebranded to "FX" logo.
+  - Created client-side virtual trade tracker synchronizing orders in `localStorage` (`macromind-virtual-trades`), monitoring tick prices to trigger automated SL/TP hit exits with alerts.
+  - Stabilized dev environment against Next.js Turbopack HMR socket interruptions using fetch fallbacks.
+  - Created `/api/trade-postmortem/route.ts` which performs post-trade structural root-cause analysis and outputs actionable trading lessons.
+  - Integrated the **AI Trade Journal & Postmortem Desk** section at the dashboard bottom to display closed trades with dynamic lesson cards.
+  - Added **"Show on Chart"** triggers drawing historical trade levels back onto the lightweight-charts canvas.
+  - Added **Self-Calibration Feedback Loops** transmitting the last 5 trade lessons as inputs to the AI Predictor system prompt to eliminate repeat errors.
+  - Integrated **Groq Lighter Fallback** (`llama-3.1-8b-instant`) at Priority 3 to guarantee sub-second prediction speeds and bypass 70B token limits.
 
 ### 2.9 TradingView Logo URLs
 

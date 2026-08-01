@@ -45,26 +45,45 @@ export function buildProviders(): ProviderConfig[] {
       url: "https://api.groq.com/openai/v1",
       model: groqModel,
     },
-    // 3 — OpenCode Zen (DeepSeek V4 Free)
+    // 3 — Groq Lighter (Bypasses TPD rate limits of 70B model, ultra-fast fallback)
+    {
+      name: "Groq (Lighter)",
+      key: process.env.GROQ_API_KEY,
+      url: "https://api.groq.com/openai/v1",
+      model: "llama-3.1-8b-instant",
+    },
+    // 4 — AgentRouter / GitHub Models (Primary fallback - premium & fast)
+    {
+      name: (process.env.AGENTROUTER_BASE_URL?.includes("github") || process.env.AGENTROUTER_BASE_URL?.includes("inference.ai")) ? "GitHub Models" : "AgentRouter",
+      key: agentRouterKey,
+      url: process.env.AGENTROUTER_BASE_URL ?? "https://agentrouter.org/v1",
+      model: process.env.AGENTROUTER_MODEL ?? "gpt-5.5",
+    },
+    // 5 — Hugging Face (Public DeepSeek AWS Endpoint - Free & Fast fallback)
+    {
+      name: "Hugging Face (DeepSeek)",
+      key: "sk-hf-public-temp-key",
+      url: "https://q5dh1rfszfym23hj.us-east-2.aws.endpoints.huggingface.cloud/v1",
+      model: "deepseek-ai/DeepSeek-V4-Flash-0731",
+    },
+    // 6 — OpenCode Zen (Last resort fallback - DeepSeek free tier)
     {
       name: "OpenCode Zen",
       key: process.env.OPENCODE_ZEN_API_KEY,
       url: "https://opencode.ai/zen/v1",
       model: "deepseek-v4-flash-free",
     },
-    // 4 — AgentRouter (last resort)
-    {
-      name: process.env.AGENTROUTER_BASE_URL?.includes("github") ? "GitHub Models" : "AgentRouter",
-      key: agentRouterKey,
-      url: process.env.AGENTROUTER_BASE_URL ?? "https://agentrouter.org/v1",
-      model: process.env.AGENTROUTER_MODEL ?? "gpt-5.5",
-    },
   ];
 }
 
 export function hasAIKey(): boolean {
-  const providers = buildProviders();
-  return providers.some((p) => Boolean(p.key));
+  return Boolean(
+    process.env.GROQ_API_KEY ||
+    process.env.GROQ_API_KEY_2 ||
+    process.env.AGENTROUTER_API_KEY ||
+    process.env.MACROMIND_OPENAI_KEY ||
+    process.env.OPENCODE_ZEN_API_KEY
+  );
 }
 
 export async function callAI(
