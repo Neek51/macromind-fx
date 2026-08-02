@@ -316,6 +316,7 @@ export function TradeAssistantDashboard() {
       createdAt: new Date().toISOString(),
       postmortem: null,
       lesson: null,
+      timeframe: candlesInterval,
     };
 
     const saved = localStorage.getItem("macromind-virtual-trades");
@@ -331,7 +332,7 @@ export function TradeAssistantDashboard() {
     
     // Sync list
     setTradesList(trades);
-  }, [prediction, symbol, asset, isMarketClosed]);
+  }, [prediction, symbol, asset, isMarketClosed, candlesInterval]);
 
   // AI Auto-Pilot automated execution loop trigger
   useEffect(() => {
@@ -436,27 +437,35 @@ export function TradeAssistantDashboard() {
     };
   }, [activeTrade, asset, virtualBalance, riskPercent]);
 
-  // Virtual trade execution ticker: Check if active open trade hits Stop Loss or Take Profit
+  // Background virtual trade execution ticker: Monitors ALL open trades across all symbols
   useEffect(() => {
-    if (!activeTrade || !asset || isMarketClosed) return;
+    if (isMarketClosed || assets.length === 0 || tradesList.length === 0) return;
 
-    const currentPrice = asset.price;
-    const isBuy = activeTrade.direction === "buy";
+    const openTrades = tradesList.filter((t) => t.status === "open");
+    if (openTrades.length === 0) return;
 
-    if (isBuy) {
-      if (currentPrice >= activeTrade.takeProfit) {
-        setTimeout(() => handleCloseTrade(activeTrade.id, activeTrade.takeProfit, "TP"), 0);
-      } else if (currentPrice <= activeTrade.stopLoss) {
-        setTimeout(() => handleCloseTrade(activeTrade.id, activeTrade.stopLoss, "SL"), 0);
+    openTrades.forEach((trade) => {
+      const tradeAsset = assets.find((a) => a.symbol === trade.symbol);
+      if (!tradeAsset) return;
+
+      const currentPrice = tradeAsset.price;
+      const isBuy = trade.direction === "buy";
+
+      if (isBuy) {
+        if (currentPrice >= trade.takeProfit) {
+          setTimeout(() => handleCloseTrade(trade.id, trade.takeProfit, "TP"), 0);
+        } else if (currentPrice <= trade.stopLoss) {
+          setTimeout(() => handleCloseTrade(trade.id, trade.stopLoss, "SL"), 0);
+        }
+      } else {
+        if (currentPrice <= trade.takeProfit) {
+          setTimeout(() => handleCloseTrade(trade.id, trade.takeProfit, "TP"), 0);
+        } else if (currentPrice >= trade.stopLoss) {
+          setTimeout(() => handleCloseTrade(trade.id, trade.stopLoss, "SL"), 0);
+        }
       }
-    } else {
-      if (currentPrice <= activeTrade.takeProfit) {
-        setTimeout(() => handleCloseTrade(activeTrade.id, activeTrade.takeProfit, "TP"), 0);
-      } else if (currentPrice >= activeTrade.stopLoss) {
-        setTimeout(() => handleCloseTrade(activeTrade.id, activeTrade.stopLoss, "SL"), 0);
-      }
-    }
-  }, [activeTrade, asset, handleCloseTrade, isMarketClosed]);
+    });
+  }, [tradesList, assets, handleCloseTrade, isMarketClosed]);
 
   const useCurrentPrice = () => {
     if (!asset) return;
@@ -636,8 +645,14 @@ export function TradeAssistantDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <span className="rounded bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Active Trade</span>
+                  {activeTrade.timeframe && (
+                    <span className="ml-2 rounded bg-slate-500/10 px-2 py-0.5 text-[10px] font-black text-slate-500 uppercase">{activeTrade.timeframe}</span>
+                  )}
                   <p className="text-xl font-black mt-2 uppercase tracking-wide">
                     {activeTrade.direction} {activeTrade.symbol}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                    Opened: {new Date(activeTrade.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(activeTrade.createdAt).toLocaleDateString()})
                   </p>
                 </div>
                 <div className="text-right">
@@ -1026,8 +1041,15 @@ export function TradeAssistantDashboard() {
                       return (
                         <tr key={t.id} className="hover:bg-slate-50/40 dark:hover:bg-white/[0.01]">
                           <td className="py-3">
-                            <span className="font-bold text-slate-800 dark:text-slate-200 block">{t.symbol}</span>
-                            <span className="text-[10px] text-slate-400 block font-mono">{new Date(t.createdAt).toLocaleDateString()}</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                              {t.symbol}
+                              {t.timeframe && (
+                                <span className="ml-1.5 rounded bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-black text-slate-500 uppercase">{t.timeframe}</span>
+                              )}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-mono">
+                              {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </td>
                           <td className="py-3">
                             <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase font-mono ${
