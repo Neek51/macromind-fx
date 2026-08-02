@@ -180,6 +180,38 @@ export function TradeAssistantDashboard() {
     };
   }, [tradesList, virtualBalance]);
 
+  // Dynamic timezone session clocks & overlap tracker (updates real-time with the clock)
+  const sessionStatus = useMemo(() => {
+    if (!now) return { tokyo: false, london: false, newYork: false, overlap: "Loading sessions...", utcTime: "" };
+    const date = new Date(now);
+    const utcHour = date.getUTCHours();
+    const utcMinute = date.getUTCMinutes();
+    const utcSecond = date.getUTCSeconds();
+    
+    // Define standard trading sessions (UTC)
+    const tokyo = utcHour >= 0 && utcHour < 9;
+    const london = utcHour >= 8 && utcHour < 17;
+    const newYork = utcHour >= 13 && utcHour < 22;
+
+    let overlap = "No Major Overlap (Asian / Quiet Hours)";
+    if (london && newYork) {
+      overlap = "London & New York Overlap (Peak Volatility)";
+    } else if (tokyo && london) {
+      overlap = "Tokyo & London Overlap (Cross-session Volatility)";
+    } else if (tokyo) {
+      overlap = "Tokyo Session Active (Asia-Pacific)";
+    } else if (london) {
+      overlap = "London Session Active (Europe)";
+    } else if (newYork) {
+      overlap = "New York Session Active (US)";
+    }
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const utcTime = `${pad(utcHour)}:${pad(utcMinute)}:${pad(utcSecond)} UTC`;
+
+    return { tokyo, london, newYork, overlap, utcTime };
+  }, [now]);
+
   // Reset Virtual Account Capital & Trades History
   const handleResetAccount = () => {
     const cleanBalance = Number(editableBalance) || 10000;
@@ -733,13 +765,13 @@ export function TradeAssistantDashboard() {
 
           {/* 2. AI Directional Probability Card */}
           <Card className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--card-border)] pb-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--card-border)] pb-3">
               <div>
                 <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400 font-mono">Directional Forecast</p>
                 <h3 className="font-black mt-0.5 text-lg">AI Probability Model</h3>
               </div>
               {prediction?.confidence && (
-                <span className={`rounded-full px-3 py-1 text-xs font-black uppercase ${
+                <span className={`self-start sm:self-auto rounded-full px-3 py-1 text-[10px] sm:text-xs font-black uppercase ${
                   prediction.confidence === "high" ? "bg-emerald-500/10 text-emerald-600" :
                   prediction.confidence === "medium" ? "bg-amber-500/10 text-amber-600" : "bg-red-500/10 text-red-600"
                 }`}>
@@ -767,14 +799,14 @@ export function TradeAssistantDashboard() {
                 </div>
 
                 {/* Target statistics */}
-                <div className="flex justify-between bg-slate-100/50 dark:bg-white/5 p-4 rounded-xl border border-[var(--card-border)]">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-slate-100/50 dark:bg-white/5 p-4 rounded-xl border border-[var(--card-border)]">
                   <div>
                     <span className="text-slate-400 block text-xs uppercase font-extrabold tracking-wider">Est. Movement</span>
                     <strong className="font-mono text-base font-black mt-1 block text-slate-900 dark:text-white">{prediction.predictedMove}</strong>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <span className="text-slate-400 block text-xs uppercase font-extrabold tracking-wider">Breakout Level</span>
-                    <strong className="font-mono text-base font-black mt-1 block text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{prediction.keyLevel}</strong>
+                    <strong className="font-mono text-sm sm:text-base font-black mt-1 inline-block text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded break-all">{prediction.keyLevel}</strong>
                   </div>
                 </div>
 
@@ -912,6 +944,45 @@ export function TradeAssistantDashboard() {
             ) : (
               <p className="text-xs text-slate-500 text-center py-4">Scan market to detect structural blocks.</p>
             )}
+          </Card>
+
+          {/* Real-time Session Clocks & Volatility Overlap Widget */}
+          <Card>
+            <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-3">
+              <div>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400 font-mono">Market Session Clocks</p>
+                <h3 className="font-black mt-0.5 text-lg">Timezone Tracker</h3>
+              </div>
+              <span className="font-mono text-[10px] sm:text-xs text-[var(--accent)] bg-[var(--accent-soft)]/20 px-2.5 py-1 rounded font-black border border-[var(--accent)]/10 animate-pulse">
+                {sessionStatus.utcTime || "00:00:00 UTC"}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-3.5">
+              {[
+                { name: "Tokyo Session (Asia)", active: sessionStatus.tokyo, hours: "00:00 - 09:00 UTC" },
+                { name: "London Session (Europe)", active: sessionStatus.london, hours: "08:00 - 17:00 UTC" },
+                { name: "New York Session (US)", active: sessionStatus.newYork, hours: "13:00 - 22:00 UTC" },
+              ].map((s) => (
+                <div key={s.name} className="flex justify-between items-center border-b border-[var(--card-border)] pb-2.5 last:border-b-0 last:pb-0">
+                  <div>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold block text-xs sm:text-sm">{s.name}</span>
+                    <span className="text-[10px] text-slate-400 font-semibold">{s.hours}</span>
+                  </div>
+                  <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                    s.active ? "bg-emerald-500/10 text-emerald-600 font-extrabold" : "bg-slate-100 dark:bg-white/5 text-slate-400"
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${s.active ? "bg-emerald-500 animate-ping" : "bg-slate-400"}`} />
+                    {s.active ? "Active" : "Closed"}
+                  </span>
+                </div>
+              ))}
+
+              <div className="mt-4 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3">
+                <span className="text-[9px] uppercase font-black tracking-widest text-amber-600 dark:text-amber-400 block">Current Overlap Status</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 block mt-1">{sessionStatus.overlap}</span>
+              </div>
+            </div>
           </Card>
 
           {/* Objective Levels Card */}
