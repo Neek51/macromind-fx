@@ -182,7 +182,7 @@ export function TradeAssistantDashboard() {
 
   // Dynamic timezone session clocks & overlap tracker (updates real-time with the clock)
   const sessionStatus = useMemo(() => {
-    if (!now) return { tokyo: false, london: false, newYork: false, overlap: "Loading sessions...", utcTime: "" };
+    if (!now) return { tokyo: false, london: false, newYork: false, overlap: "Loading sessions...", utcTime: "", localTime: "" };
     const date = new Date(now);
     const utcHour = date.getUTCHours();
     const utcMinute = date.getUTCMinutes();
@@ -208,8 +208,9 @@ export function TradeAssistantDashboard() {
 
     const pad = (n: number) => String(n).padStart(2, "0");
     const utcTime = `${pad(utcHour)}:${pad(utcMinute)}:${pad(utcSecond)} UTC`;
+    const localTime = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
 
-    return { tokyo, london, newYork, overlap, utcTime };
+    return { tokyo, london, newYork, overlap, utcTime, localTime };
   }, [now]);
 
   // Reset Virtual Account Capital & Trades History
@@ -948,14 +949,19 @@ export function TradeAssistantDashboard() {
 
           {/* Real-time Session Clocks & Volatility Overlap Widget */}
           <Card>
-            <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center border-b border-[var(--card-border)] pb-3">
               <div>
                 <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400 font-mono">Market Session Clocks</p>
                 <h3 className="font-black mt-0.5 text-lg">Timezone Tracker</h3>
               </div>
-              <span className="font-mono text-[10px] sm:text-xs text-[var(--accent)] bg-[var(--accent-soft)]/20 px-2.5 py-1 rounded font-black border border-[var(--accent)]/10 animate-pulse">
-                {sessionStatus.utcTime || "00:00:00 UTC"}
-              </span>
+              <div className="flex flex-wrap gap-1.5 self-start sm:self-auto font-mono text-[10px] font-black">
+                <span className="text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10">
+                  {sessionStatus.localTime || "00:00:00 AM"} Local
+                </span>
+                <span className="text-[var(--accent)] bg-[var(--accent-soft)]/20 px-2 py-0.5 rounded border border-[var(--accent)]/10 animate-pulse">
+                  {sessionStatus.utcTime || "00:00:00 UTC"}
+                </span>
+              </div>
             </div>
 
             <div className="mt-4 space-y-3.5">
