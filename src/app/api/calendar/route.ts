@@ -146,22 +146,34 @@ function dedupe(events: CalendarEvent[]) {
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
+async function fetchSafe(url: string, timeoutMs: number) {
+  try {
+    return await fetch(url, {
+      next: { revalidate: 1800 },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    console.warn(`[Calendar API] Safe-fetch failed for ${url}:`, e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
 export async function GET() {
   const [ffResult, blsResult] = await Promise.allSettled([
-    fetch(FF_SOURCE, { next: { revalidate: 1800 }, signal: AbortSignal.timeout(5000) }),
-    fetch(BLS_SOURCE, { next: { revalidate: 21600 }, signal: AbortSignal.timeout(5000) }),
+    fetchSafe(FF_SOURCE, 4000),
+    fetchSafe(BLS_SOURCE, 4000),
   ]);
 
   const events: CalendarEvent[] = [];
   const sources: string[] = [];
 
-  if (ffResult.status === "fulfilled" && ffResult.value.ok) {
+  if (ffResult.status === "fulfilled" && ffResult.value && ffResult.value.ok) {
     const ffEvents = await ffResult.value.json() as FfEvent[];
     events.push(...ffEvents.map(normalizeFfEvent).filter((event): event is CalendarEvent => Boolean(event)));
     sources.push("ForexFactory");
   }
 
-  if (blsResult.status === "fulfilled" && blsResult.value.ok) {
+  if (blsResult.status === "fulfilled" && blsResult.value && blsResult.value.ok) {
     events.push(...parseBlsEvents(await blsResult.value.text()));
     sources.push("BLS");
   }
