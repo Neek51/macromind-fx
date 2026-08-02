@@ -374,8 +374,8 @@ export function TradeAssistantDashboard() {
     setActiveTrade(null);
     setTradesList(trades);
     
-    // Trigger background AI Postmortem report
-    fetch("/api/trade-postmortem", {
+    // Trigger background AI Trade Audit report
+    fetch("/api/trade-audit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ trade }),
@@ -388,7 +388,7 @@ export function TradeAssistantDashboard() {
             const freshTrades: VirtualTrade[] = JSON.parse(freshSaved);
             const freshIndex = freshTrades.findIndex((t) => t.id === trade.id);
             if (freshIndex !== -1) {
-              freshTrades[freshIndex].postmortem = json.data.postmortem;
+              freshTrades[freshIndex].postmortem = json.data.review;
               freshTrades[freshIndex].lesson = json.data.lesson;
               localStorage.setItem("macromind-virtual-trades", JSON.stringify(freshTrades));
               setTradesList(freshTrades);
@@ -396,7 +396,7 @@ export function TradeAssistantDashboard() {
           }
         }
       })
-      .catch((err) => console.error("Error executing background postmortem:", err));
+      .catch((err) => console.error("Error executing background review:", err));
 
     // Alert user
     alert(`Virtual Trade Closed! PnL: ${trade.pnlAmount >= 0 ? "+" : ""}$${trade.pnlAmount.toFixed(2)} (${trade.pnlPercentage.toFixed(2)}%) · [${hitType}]`);
@@ -946,12 +946,12 @@ export function TradeAssistantDashboard() {
         </Card>
       </section>
 
-      {/* Phase 4: Trade Journal & AI Postmortem Lessons */}
+      {/* Phase 4: Trade Journal & AI Audit Lessons */}
       <section className="w-full">
         <Card className="flex flex-col gap-4">
           <div className="border-b border-[var(--card-border)] pb-3">
-            <h3 className="text-lg font-black">AI Trade Journal & Postmortem Desk</h3>
-            <p className="text-xs text-slate-400">Review historical trades, PnL statistics, and structural lessons.</p>
+            <h3 className="text-lg font-black">AI Trade Journal & Audit Desk</h3>
+            <p className="text-xs text-slate-400">Review historical trades, PnL statistics, and structural trade audits.</p>
           </div>
 
           {tradesList.filter(t => t.status === "closed").length === 0 ? (
@@ -966,7 +966,7 @@ export function TradeAssistantDashboard() {
                     <th className="py-2.5 text-right">Entry & Exit</th>
                     <th className="py-2.5 text-right">Net PnL</th>
                     <th className="py-2.5 text-center">Outcome</th>
-                    <th className="py-2.5">AI Postmortem Lessons</th>
+                    <th className="py-2.5">AI Trade Review & Lessons</th>
                     <th className="py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
