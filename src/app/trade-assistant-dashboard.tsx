@@ -1113,99 +1113,189 @@ export function TradeAssistantDashboard() {
           {tradesList.filter(t => t.status === "closed" && t.symbol === symbol).length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-6">No closed {symbol} trades logged. Auto-Pilot or manual executions on {symbol} will build this log.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs text-slate-500 dark:text-slate-400">
-                <thead>
-                  <tr className="border-b border-[var(--card-border)] text-[10px] uppercase font-bold text-slate-400 font-mono">
-                    <th className="py-2.5">Asset / Date</th>
-                    <th className="py-2.5">Type</th>
-                    <th className="py-2.5 text-right">Entry & Exit</th>
-                    <th className="py-2.5 text-right">Net PnL</th>
-                    <th className="py-2.5 text-center">Outcome</th>
-                    <th className="py-2.5">AI Trade Review & Lessons</th>
-                    <th className="py-2.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--card-border)] font-medium">
-                  {tradesList
-                    .filter((t) => t.status === "closed" && t.symbol === symbol)
-                    .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime())
-                    .map((t) => {
-                      const isWin = (t.pnlAmount ?? 0) > 0;
-                      return (
-                        <tr key={t.id} className="hover:bg-slate-50/40 dark:hover:bg-white/[0.01]">
-                          <td className="py-3">
-                            <span className="font-bold text-slate-800 dark:text-slate-200 block">
-                              {t.symbol}
-                              {t.timeframe && (
-                                <span className="ml-1.5 rounded bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-black text-slate-500 uppercase">{t.timeframe}</span>
+            <>
+              {/* Desktop View: Standard Journal Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full border-collapse text-left text-xs text-slate-500 dark:text-slate-400">
+                  <thead>
+                    <tr className="border-b border-[var(--card-border)] text-[10px] uppercase font-bold text-slate-400 font-mono">
+                      <th className="py-2.5">Asset / Date</th>
+                      <th className="py-2.5">Type</th>
+                      <th className="py-2.5 text-right">Entry & Exit</th>
+                      <th className="py-2.5 text-right">Net PnL</th>
+                      <th className="py-2.5 text-center">Outcome</th>
+                      <th className="py-2.5">AI Trade Review & Lessons</th>
+                      <th className="py-2.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--card-border)] font-medium">
+                    {tradesList
+                      .filter((t) => t.status === "closed" && t.symbol === symbol)
+                      .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime())
+                      .map((t) => {
+                        const isWin = (t.pnlAmount ?? 0) > 0;
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-50/40 dark:hover:bg-white/[0.01]">
+                            <td className="py-3">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                                {t.symbol}
+                                {t.timeframe && (
+                                  <span className="ml-1.5 rounded bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-black text-slate-500 uppercase">{t.timeframe}</span>
+                                )}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block font-mono">
+                                {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase font-mono ${
+                                t.direction === "buy" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"
+                              }`}>
+                                {t.direction}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right font-mono">
+                              <span className="text-slate-700 dark:text-slate-300 block">{formatPrice(t.symbol, t.entry)}</span>
+                              <span className="text-slate-400 block">{t.exitPrice ? formatPrice(t.symbol, t.exitPrice) : "—"}</span>
+                            </td>
+                            <td className="py-3 text-right font-mono font-bold">
+                              <span className={isWin ? "text-emerald-500" : "text-red-500"}>
+                                {t.pnlAmount !== null ? `${t.pnlAmount >= 0 ? "+" : ""}$${t.pnlAmount.toFixed(2)}` : "—"}
+                              </span>
+                              <span className={`block text-[10px] ${isWin ? "text-emerald-500" : "text-red-500"}`}>
+                                {t.pnlPercentage !== null ? `${t.pnlPercentage >= 0 ? "+" : ""}${t.pnlPercentage.toFixed(2)}%` : "—"}
+                              </span>
+                            </td>
+                            <td className="py-3 text-center">
+                              <span className={`rounded-xl px-2 py-0.5 font-bold uppercase ${
+                                isWin ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"
+                              }`}>
+                                {isWin ? "TP Hit" : "SL Hit"}
+                              </span>
+                            </td>
+                            <td className="py-3 max-w-[320px]">
+                              {t.postmortem ? (
+                                <div className="space-y-1">
+                                  <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{t.postmortem}</p>
+                                  {t.lesson && (
+                                    <p className="text-amber-600 dark:text-amber-400 font-bold bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 mt-1">
+                                      💡 <span className="font-extrabold">Lesson:</span> {t.lesson}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-slate-400 animate-pulse font-semibold">
+                                  <div className="h-2 w-2 rounded-full bg-slate-400" />
+                                  Analyzing trade dynamics...
+                                </div>
                               )}
-                            </span>
-                            <span className="text-[10px] text-slate-400 block font-mono">
-                              {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                            </span>
-                          </td>
-                          <td className="py-3">
-                            <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase font-mono ${
+                            </td>
+                            <td className="py-3 text-right">
+                              <button
+                                onClick={() => {
+                                  setSymbol(t.symbol);
+                                  setSelectedHistoricalTrade(t);
+                                  window.scrollTo({ top: 0, behavior: "smooth" });
+                                }}
+                                className="rounded-lg bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-white px-2.5 py-1.5 text-[10px] font-black uppercase text-[var(--accent)] transition-all cursor-pointer"
+                              >
+                                Show on Chart
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View: Responsive Card Grid (Stack format) */}
+              <div className="block md:hidden space-y-4">
+                {tradesList
+                  .filter((t) => t.status === "closed" && t.symbol === symbol)
+                  .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime())
+                  .map((t) => {
+                    const isWin = (t.pnlAmount ?? 0) > 0;
+                    return (
+                      <div key={t.id} className="rounded-xl border border-[var(--card-border)] bg-slate-50/50 dark:bg-white/[0.01] p-4 space-y-3">
+                        <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-2">
+                          <div>
+                            <span className="font-mono font-black text-slate-800 dark:text-slate-200 text-sm">{t.symbol}</span>
+                            {t.timeframe && (
+                              <span className="ml-1.5 rounded bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-black text-slate-500 uppercase">{t.timeframe}</span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Direction</span>
+                            <span className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-black uppercase font-mono mt-0.5 ${
                               t.direction === "buy" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"
                             }`}>
                               {t.direction}
                             </span>
-                          </td>
-                          <td className="py-3 text-right font-mono">
-                            <span className="text-slate-700 dark:text-slate-300 block">{formatPrice(t.symbol, t.entry)}</span>
-                            <span className="text-slate-400 block">{t.exitPrice ? formatPrice(t.symbol, t.exitPrice) : "—"}</span>
-                          </td>
-                          <td className="py-3 text-right font-mono font-bold">
-                            <span className={isWin ? "text-emerald-500" : "text-red-500"}>
-                              {t.pnlAmount !== null ? `${t.pnlAmount >= 0 ? "+" : ""}$${t.pnlAmount.toFixed(2)}` : "—"}
-                            </span>
-                            <span className={`block text-[10px] ${isWin ? "text-emerald-500" : "text-red-500"}`}>
-                              {t.pnlPercentage !== null ? `${t.pnlPercentage >= 0 ? "+" : ""}${t.pnlPercentage.toFixed(2)}%` : "—"}
-                            </span>
-                          </td>
-                          <td className="py-3 text-center">
-                            <span className={`rounded-xl px-2 py-0.5 font-bold uppercase ${
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">Outcome</span>
+                            <span className={`inline-block rounded-xl px-2 py-0.5 text-[9px] font-bold uppercase mt-0.5 ${
                               isWin ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"
                             }`}>
                               {isWin ? "TP Hit" : "SL Hit"}
                             </span>
-                          </td>
-                          <td className="py-3 max-w-[320px]">
-                            {t.postmortem ? (
-                              <div className="space-y-1">
-                                <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{t.postmortem}</p>
-                                {t.lesson && (
-                                  <p className="text-amber-600 dark:text-amber-400 font-bold bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 mt-1">
-                                    💡 <span className="font-extrabold">Lesson:</span> {t.lesson}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 text-slate-400 animate-pulse font-semibold">
-                                <div className="h-2 w-2 rounded-full bg-slate-400" />
-                                Analyzing trade dynamics...
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 text-right">
-                            <button
-                              onClick={() => {
-                                setSymbol(t.symbol);
-                                setSelectedHistoricalTrade(t);
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                              }}
-                              className="rounded-lg bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-white px-2.5 py-1.5 text-[10px] font-black uppercase text-[var(--accent)] transition-all cursor-pointer"
-                            >
-                              Show on Chart
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider font-sans">Entry & Exit</span>
+                            <span className="font-mono font-bold block mt-0.5 text-slate-700 dark:text-slate-300">
+                              {formatPrice(t.symbol, t.entry)} ➔ {t.exitPrice ? formatPrice(t.symbol, t.exitPrice) : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider font-sans">Net PnL</span>
+                            <span className={`font-mono font-black block mt-0.5 ${isWin ? "text-emerald-500" : "text-red-500"}`}>
+                              {t.pnlAmount !== null ? `${t.pnlAmount >= 0 ? "+" : ""}$${t.pnlAmount.toFixed(2)}` : "—"}
+                              <span className="text-[10px] ml-1 font-bold">({t.pnlPercentage !== null ? `${t.pnlPercentage >= 0 ? "+" : ""}${t.pnlPercentage.toFixed(2)}%` : "—"})</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-[var(--card-border)] pt-2 space-y-1">
+                          <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider font-mono">AI Review & Lessons</span>
+                          {t.postmortem ? (
+                            <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
+                              <p className="font-medium leading-relaxed">{t.postmortem}</p>
+                              {t.lesson && (
+                                <p className="text-amber-600 dark:text-amber-400 font-bold bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 mt-1 leading-normal">
+                                  💡 <span className="font-extrabold font-sans">Lesson:</span> {t.lesson}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-400 text-xs animate-pulse font-semibold py-1">
+                              <div className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                              Analyzing trade dynamics...
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setSymbol(t.symbol);
+                            setSelectedHistoricalTrade(t);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="w-full rounded-lg bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-white py-2 text-[10px] font-black uppercase text-[var(--accent)] transition-all cursor-pointer text-center"
+                        >
+                          Show on Chart
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
           )}
         </Card>
       </section>
