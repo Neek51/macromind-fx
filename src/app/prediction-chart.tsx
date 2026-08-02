@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import type { Candle } from "./lib/backtest";
 import type { AIPrediction, VirtualTrade } from "./types";
-import type { IChartApi, ISeriesApi, Time, IPriceLine } from "lightweight-charts";
+import type { IChartApi, ISeriesApi, Time, IPriceLine, LineWidth } from "lightweight-charts";
 
 type Props = {
   candles: Candle[];
@@ -46,7 +46,7 @@ export function PredictionChart({
         const line = series.createPriceLine({
           price,
           color,
-          lineWidth: width,
+          lineWidth: width as LineWidth,
           lineStyle: style, // 0 = Solid, 1 = Dotted, 2 = Dashed
           axisLabelVisible: true,
           title: label,

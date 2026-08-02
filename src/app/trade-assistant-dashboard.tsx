@@ -165,9 +165,9 @@ export function TradeAssistantDashboard() {
   const stats = useMemo(() => {
     const closedTrades = tradesList.filter(t => t.status === "closed");
     const total = closedTrades.length;
-    const wins = closedTrades.filter(t => t.pnlAmount > 0).length;
+    const wins = closedTrades.filter(t => t.pnlAmount !== null && t.pnlAmount > 0).length;
     const winRate = total > 0 ? (wins / total) * 100 : 0;
-    const netPnl = closedTrades.reduce((acc, t) => acc + t.pnlAmount, 0);
+    const netPnl = closedTrades.reduce((acc, t) => acc + (t.pnlAmount ?? 0), 0);
 
     const startingCapital = virtualBalance - netPnl;
     const netPnlPercent = startingCapital > 0 ? (netPnl / startingCapital) * 100 : 0;
