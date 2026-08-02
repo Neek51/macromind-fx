@@ -1,6 +1,6 @@
 # 📂 Workspace Overview — /home/nisarg/Desktop/ideas
 
-**Last Updated:** August 1, 2026 (Implemented Phase 1, Phase 2, and Phase 3 of the AI Virtual Trade Desk: structured SMC predictions, resampled historical candles, live chart overlays, full-screen horizontal top header navigation rebranded to FX Terminal, localStorage order matching, and fetch HMR safety catches)
+**Last Updated:** August 2, 2026 (Implemented AI Trade Audit rebranding, mathematical Premium/Discount & CISD zone filters, safe calendar timeouts, printable SMC playbook, localized charting timezone scales, TradingView-smooth dotted crosshair, responsive mobile trade journal cards, and local timezone Market Session clocks)
 **Workspace Root:** `/home/nisarg/Desktop/ideas`
 
 This document is a comprehensive, in-depth record of every project, file, and resource in this workspace. It covers what each project is, how it works, its architecture, current status, and all relevant code/configuration details.
@@ -373,6 +373,14 @@ The Calendar page clearly labels event sources and unavailable actual values. If
   - Added **"Show on Chart"** triggers drawing historical trade levels back onto the lightweight-charts canvas.
   - Added **Self-Calibration Feedback Loops** transmitting the last 5 trade lessons as inputs to the AI Predictor system prompt to eliminate repeat errors.
   - Integrated **Groq Lighter Fallback** (`llama-3.1-8b-instant`) at Priority 3 to guarantee sub-second prediction speeds and bypass 70B token limits.
+  - **Rebrand to AI Trade Audit & Review (August 2, 2026)**: Rebranded all occurrences of "Postmortem" to "Trade Audit" and "Trade Review" across UI copy, page layouts, route directories, and API endpoints (replacing `/api/trade-postmortem` with `/api/trade-audit`).
+  - **Mathematical SMC & ICT Engine**: Programmed calculation formulas in `/api/ai-prediction` for Dealing Range (20-candle high/low), Equilibrium (50% Fibonacci mark), Premium/Discount zone coordinates, and Change in State of Delivery (CISD) shifts. Passed these to the LLM context and manual dashboard setup checklist.
+  - **Multi-Symbol Background Monitor**: Refactored the dashboard trade ticker into an all-symbols loop checking open positions against live prices in the background, preventing background symbol trades from getting stuck.
+  - **Economic Calendar fetchSafe Utility**: Created `fetchSafe` wrapper with `AbortSignal.timeout` to handle slow third-party calendar connections (like `www.bls.gov` timeouts) gracefully and prevent Next.js HMR console warning dumps.
+  - **Offline Printable SMC Playbook**: Generated `smc_trading_playbook.html` containing visual red/green candle bodies, wicks, and annotations (BOS, CHOCH, CISD, OB, FVG, Equilibrium) with print stylesheets to ensure browser-printed PDFs format correctly.
+  - **Lightweight-Charts Localization & Custom Crosshair**: Configured 12-hour AM/PM formatting for trade execution timestamps globally; localized Lightweight Charts timeline ticks and crosshair hover tooltips to the browser's local timezone; switched chart crosshair to Normal mode (`mode: 0`) and styled custom dotted track lines to replicate pixel-smooth TradingView tracing.
+  - **Responsive Trade Journal Mobile Layout**: Redesigned the Trade Journal section using responsive layout containers: wraps the desktop view in a standard tabular view, and renders stacked card summary grids on mobile screens.
+  - **Market Session Clocks & Volatility Overlap Timezone Tracker**: Added a real-time card widget on the right column tracking Tokyo, London, and New York session status, local/UTC clocks, and active overlaps, automatically localized based on the user's timezone (e.g. IST).
 
 ### 2.9 TradingView Logo URLs
 
@@ -935,7 +943,7 @@ Several `resume.text` files exist across the workspace. These contain session to
 
 | Project | Type | Status | Key Achievement |
 |---------|------|--------|-----------------|
-| **MacroMind FX** | Next.js trade-safety assistant | 🟢 Active | Focused Gold/BTC/EURUSD workflow with verified event safety, objective levels, source freshness, setup checks, and broker-safe risk planning |
+| **MacroMind FX** | Next.js trade-safety assistant | 🟢 Active | Rebranded trade audits, mathematical Premium/Discount & CISD zone filters, safe calendar timeouts, local timezone charts & clocks overlap tracker, and responsive mobile trade journal cards |
 | **Fx Ultimate** | Trading strategy (3 platforms) | 🟡 Running | Backtested 6 modes on Python, deployed Pine Script on TradingView, MQL5 EA for MT5 |
 | **Design Fetcher** | Design extraction tool | 🟡 In Progress | Working extraction with Puppeteer, known issues being tracked |
 | **P2P File Share** | WebRTC file transfer | 🔴 Planning | Full plan documented, no code yet |
@@ -943,4 +951,4 @@ Several `resume.text` files exist across the workspace. These contain session to
 
 ---
 
-*This document was compiled on July 14, 2026 by aggregating all files in the workspace. It serves as a living reference — update it as projects evolve.*
+*This document was compiled on August 2, 2026 by aggregating all files in the workspace. It serves as a living reference — update it as projects evolve.*
