@@ -381,6 +381,7 @@ The Calendar page clearly labels event sources and unavailable actual values. If
   - **Lightweight-Charts Localization & Custom Crosshair**: Configured 12-hour AM/PM formatting for trade execution timestamps globally; localized Lightweight Charts timeline ticks and crosshair hover tooltips to the browser's local timezone; switched chart crosshair to Normal mode (`mode: 0`) and styled custom dotted track lines to replicate pixel-smooth TradingView tracing.
   - **Responsive Trade Journal Mobile Layout**: Redesigned the Trade Journal section using responsive layout containers: wraps the desktop view in a standard tabular view, and renders stacked card summary grids on mobile screens.
   - **Market Session Clocks & Volatility Overlap Timezone Tracker**: Added a real-time card widget on the right column tracking Tokyo, London, and New York session status, local/UTC clocks, and active overlaps, automatically localized based on the user's timezone (e.g. IST).
+  - **Dynamic Trade Lot Sizing**: Integrated mathematical calculations mapping stop-loss distance and dollar risk to standard contract sizing lots (100 oz for Gold, 100k units for EUR/USD, 1 BTC unit for Bitcoin). Lot sizes are calculated on order entry and displayed across the Active Trade Card, desktop journal table, mobile journal card list, and Manual Risk Planner output grid.
 
 ### 2.9 TradingView Logo URLs
 

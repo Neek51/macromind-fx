@@ -214,5 +214,6 @@ export type VirtualTrade = {
   postmortem: string | null;
   lesson: string | null;
   timeframe: string | null;
+  lots: number | null;
 };
 
