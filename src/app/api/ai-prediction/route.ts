@@ -4,6 +4,7 @@ import { GET as getNews } from "../news/route";
 import { GET as getCalendar } from "../calendar/route";
 import { GET as getHistory } from "../history/route";
 import { callAI, hasAIKey } from "../ai-provider";
+import { scrapeTelegramChannel } from "../../lib/sentiment-scraper";
 
 const DISPLAY_NAMES: Record<string, string> = {
   "XAU/USD": "Gold Spot",
@@ -49,6 +50,18 @@ async function fetchCandles(symbol: string, interval: string) {
   } catch { return []; }
 }
 
+async function fetchSentinelRumors() {
+  try {
+    const [zeroHedge, forexLive] = await Promise.all([
+      scrapeTelegramChannel("zerohedge", "ZeroHedge Feed"),
+      scrapeTelegramChannel("forexlive", "ForexLive Feed"),
+    ]);
+    return [...zeroHedge, ...forexLive].slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
 function getActiveSessions(): string {
   const hour = new Date().getUTCHours();
   const sessions = [];
@@ -83,11 +96,12 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
   }
 
   try {
-    const [prices, news, calendar, candles] = await Promise.all([
+    const [prices, news, calendar, candles, sentinelRumors] = await Promise.all([
       fetchPrices(),
       fetchNews(),
       fetchCalendar(),
       fetchCandles(symbol, interval),
+      fetchSentinelRumors(),
     ]);
 
     const activePrice = prices.find((p: { symbol: string }) => p.symbol === symbol)?.price ?? 0;
@@ -172,11 +186,20 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
         `- ${e.title} (${e.impact} impact) at ${e.date}`).join("\n")
       : "No upcoming economic events.";
 
+    const sentinelText = sentinelRumors.length > 0
+      ? sentinelRumors.map((r: { text: string; source: string }) => `- [${r.source}] ${r.text}`).join("\n")
+      : "No live breaking macro rumor bulletins detected.";
+
     const prompt = `You are a professional forex trading algorithm specializing in Smart Money Concepts (SMC), market structure shifts, and macroeconomic sentiment analysis.
 Analyze this raw data for ${DISPLAY_NAMES[symbol] ?? symbol} (${symbol}) and generate a probability directional forecast and a virtual trade setup for the next 1-4 hours on the ${interval} timeframe.
 ${selfCalibrationText}
 Current Price: ${activePrice}
 Active Trading Session: ${activeSessions}
+
+Live Automated Sentinel Feed (Breaking Geopolitics & Institutional Rumors):
+${sentinelText}
+
+This sentinel feed tracks fast-breaking macro rumors, central bank reserve updates, and geopolitical bulletins gathered directly from institutional trading desk feeds. Synthesize this data to detect immediate sentiment shifts (such as sudden treasury selloffs, central bank reserve restructuring, or geopolitical announcements) that may override standard technical indicators or RSS feeds.
 
 Mathematical SMC Overlays:
 - Dealing Range High: ${dealingHigh}

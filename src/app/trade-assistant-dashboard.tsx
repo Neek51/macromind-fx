@@ -7,6 +7,7 @@ import { Card, PageShell } from "./components";
 import { calculateMarketContext, calculateRiskPlan, evaluateTradeSafety } from "./lib/trade-assistant";
 import type { CalendarEvent, LiveAsset, AIPrediction, VirtualTrade } from "./types";
 import type { Candle } from "./lib/backtest";
+import type { SentinelItem } from "./lib/sentiment-scraper";
 
 // Load Chart dynamically with SSR disabled to prevent lightweight-charts hydration issues
 const PredictionChart = dynamic(
@@ -66,6 +67,8 @@ export function TradeAssistantDashboard() {
   const [editableBalance, setEditableBalance] = useState("10000");
   const [autoPilot, setAutoPilot] = useState(false);
   const [tradesList, setTradesList] = useState<VirtualTrade[]>([]);
+  const [sentinelFeed, setSentinelFeed] = useState<SentinelItem[]>([]);
+  const [sentinelLoading, setSentinelLoading] = useState(true);
 
   // Manual Risk Planner inputs (kept for manual calculations if desired)
   const [accountSize, setAccountSize] = useState("1000");
@@ -259,6 +262,35 @@ export function TradeAssistantDashboard() {
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => { clearTimeout(timer); clearInterval(refresh); clearInterval(clock); };
   }, [loadCoreData]);
+
+  // Load Sentinel macro feed autonomously
+  useEffect(() => {
+    let active = true;
+    const loadSentinel = async () => {
+      try {
+        const res = await fetch("/api/sentinel").catch(() => null);
+        if (!res || !res.ok) return;
+        const json = await res.json().catch(() => ({ data: [] }));
+        if (active && json.data) {
+          setSentinelFeed(json.data);
+        }
+      } catch (err) {
+        console.warn("Sentinel Feed failed to load:", err);
+      } finally {
+        if (active) setSentinelLoading(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      void loadSentinel();
+    }, 0);
+    const interval = setInterval(loadSentinel, 60000); // Poll sentinel feed every 60s
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Load symbol-specific data asynchronously inside setTimeout to comply with React 19 styling rules
   useEffect(() => {
@@ -1021,6 +1053,43 @@ export function TradeAssistantDashboard() {
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100 block mt-1">{sessionStatus.overlap}</span>
               </div>
             </div>
+          </Card>
+
+          {/* Automated Sentinel HUD Widget (Breaking Geopolitics & Macro Rumors) */}
+          <Card className="border-[var(--accent)]/20 bg-[var(--accent-soft)]/[0.02]">
+            <div className="flex items-center justify-between border-b border-[var(--card-border)] pb-3">
+              <div>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400 font-mono">Automated Sentinel Feed</p>
+                <h3 className="font-black mt-0.5 text-lg">Breaking Macro & Rumors</h3>
+              </div>
+              <span className="flex items-center gap-1 text-[9px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Live Monitoring
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-3.5 max-h-[300px] overflow-y-auto pr-1 select-none">
+              {sentinelLoading ? (
+                <div className="space-y-2 py-4">
+                  <div className="h-12 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
+                  <div className="h-12 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
+                  <div className="h-12 bg-slate-100 dark:bg-white/5 rounded-lg animate-pulse" />
+                </div>
+              ) : sentinelFeed.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-4">No live macro rumor bulletins detected.</p>
+              ) : (
+                sentinelFeed.map((item, idx) => (
+                  <div key={idx} className="border-b border-[var(--card-border)] pb-3 last:border-b-0 last:pb-0 space-y-1.5">
+                    <div className="flex justify-between items-center text-[9px] font-bold">
+                      <span className="text-[var(--accent)] bg-[var(--accent-soft)]/20 px-2 py-0.5 rounded border border-[var(--accent)]/10 font-mono uppercase tracking-wider">{item.source}</span>
+                      <span className="text-slate-400 font-mono">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-bold leading-relaxed">{item.text}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="mt-4 text-[9px] text-slate-400 text-center font-bold font-mono uppercase tracking-wider">Feed aggregates dynamically from live public channels.</p>
           </Card>
 
           {/* Objective Levels Card */}
