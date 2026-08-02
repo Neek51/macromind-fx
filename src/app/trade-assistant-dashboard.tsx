@@ -652,7 +652,7 @@ export function TradeAssistantDashboard() {
                     {activeTrade.direction} {activeTrade.symbol}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-1 font-mono">
-                    Opened: {new Date(activeTrade.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(activeTrade.createdAt).toLocaleDateString()})
+                    Opened: {new Date(activeTrade.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })} ({new Date(activeTrade.createdAt).toLocaleDateString()})
                   </p>
                 </div>
                 <div className="text-right">
@@ -1048,7 +1048,7 @@ export function TradeAssistantDashboard() {
                               )}
                             </span>
                             <span className="text-[10px] text-slate-400 block font-mono">
-                              {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                             </span>
                           </td>
                           <td className="py-3">
