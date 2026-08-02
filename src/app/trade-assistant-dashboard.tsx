@@ -1016,8 +1016,8 @@ export function TradeAssistantDashboard() {
             <p className="text-xs text-slate-400">Review historical trades, PnL statistics, and structural trade audits.</p>
           </div>
 
-          {tradesList.filter(t => t.status === "closed").length === 0 ? (
-            <p className="text-xs text-slate-500 text-center py-6">No closed trades logged. Auto-Pilot or manual executions will build this log.</p>
+          {tradesList.filter(t => t.status === "closed" && t.symbol === symbol).length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-6">No closed {symbol} trades logged. Auto-Pilot or manual executions on {symbol} will build this log.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs text-slate-500 dark:text-slate-400">
@@ -1034,7 +1034,7 @@ export function TradeAssistantDashboard() {
                 </thead>
                 <tbody className="divide-y divide-[var(--card-border)] font-medium">
                   {tradesList
-                    .filter((t) => t.status === "closed")
+                    .filter((t) => t.status === "closed" && t.symbol === symbol)
                     .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime())
                     .map((t) => {
                       const isWin = (t.pnlAmount ?? 0) > 0;
