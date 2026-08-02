@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Institutional SMC & ICT Trading Playbook</title>
+  <style>
+    :root {
+      --bg: #0c0a09;
+      --card-bg: #1c1917;
+      --text: #f5f5f4;
+      --text-muted: #a8a29e;
+      --accent: #3b82f6;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --border: #292524;
+    }
+
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+      .card {
+        border: 1px solid #e5e7eb !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        color: #000000 !important;
+      }
+      h1, h2, h3 {
+        color: #000000 !important;
+      }
+      p, li {
+        color: #1f2937 !important;
+      }
+      svg {
+        filter: none !important;
+      }
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin: 0 0 10px 0;
+      letter-spacing: -0.05em;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-top: 50px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .formula-box {
+      background-color: rgba(59, 130, 246, 0.1);
+      border-left: 4px solid var(--accent);
+      padding: 15px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+
+    .formula-box strong {
+      color: var(--text);
+    }
+
+    .chart-container {
+      background-color: #141210;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 25px 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    ul {
+      padding-left: 20px;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    li {
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    li strong {
+      color: var(--text);
+    }
+
+    .badge-bullish {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .badge-bearish {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .badge-neutral {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>INSTITUTIONAL ORDER FLOW PLAYBOOK</h1>
+      <p>SMC & ICT Trade Configuration Guide · Real Market Execution Models</p>
+    </header>
+
+    <!-- CHAPTER 1 -->
+    <div class="page-break">
+      <div class="section-title">Chapter 1: BOS (Break of Structure)</div>
+      <div class="card">
+        <p><strong>BOS (Break of Structure)</strong> is the core indicator of trend continuation. It confirms that the dominant market force (buyers or sellers) is successfully maintaining control by breaking past previous major swing boundaries.</p>
+        
+        <div class="formula-box">
+          <strong>Rule of Confirmation:</strong> A valid BOS is confirmed only when the <strong>body of a candle closes past</strong> the previous swing point. A mere wick breakout is a liquidity sweep, not a BOS.
+        </div>
+
+        <div class="chart-container">
+          <!-- BOS SVG CHART -->
+          <svg width="600" height="300" viewBox="0 0 600 300">
+            <!-- Grid Lines -->
+            <line x1="50" y1="50" x2="550" y2="50" stroke="#292524" stroke-dasharray="2" />
+            <line x1="50" y1="120" x2="550" y2="120" stroke="#292524" stroke-dasharray="2" />
+            <line x1="50" y1="200" x2="550" y2="200" stroke="#292524" stroke-dasharray="2" />
+
+            <!-- Candle 1 (Bullish) -->
+            <line x1="100" y1="130" x2="100" y2="240" stroke="#10b981" stroke-width="2" />
+            <rect x="90" y="150" width="20" height="70" fill="#10b981" rx="2" />
+
+            <!-- Candle 2 (Bullish Swing High) -->
+            <line x1="200" y1="80" x2="200" y2="180" stroke="#10b981" stroke-width="2" />
+            <rect x="190" y="100" width="20" height="60" fill="#10b981" rx="2" />
+            <text x="200" y="70" fill="#a8a29e" font-size="10" text-anchor="middle" font-family="monospace">Swing High (100)</text>
+
+            <!-- Line at Swing High -->
+            <line x1="200" y1="100" x2="480" y2="100" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+            <text x="340" y="90" fill="#3b82f6" font-size="12" font-weight="bold" font-family="monospace">BOS Trigger Level</text>
+
+            <!-- Candle 3 (Bearish Pullback) -->
+            <line x1="300" y1="120" x2="300" y2="210" stroke="#ef4444" stroke-width="2" />
+            <rect x="290" y="130" width="20" height="60" fill="#ef4444" rx="2" />
+
+            <!-- Candle 4 (Bullish Breakout - Body Close above High) -->
+            <line x1="400" y1="60" x2="400" y2="170" stroke="#10b981" stroke-width="2" />
+            <rect x="390" y="70" width="20" height="80" fill="#10b981" rx="2" />
+
+            <!-- Annotations -->
+            <circle cx="400" cy="70" r="5" fill="#3b82f6" />
+            <path d="M 420 50 L 460 30" stroke="#3b82f6" stroke-width="2" fill="none" />
+            <text x="470" y="25" fill="#3b82f6" font-size="11" font-weight="bold" font-family="monospace">BOS CONFIRMED</text>
+            <text x="470" y="40" fill="#a8a29e" font-size="9" font-family="monospace">(Body Closes Above High)</text>
+          </svg>
+        </div>
+
+        <h3>Easy Practical Example:</h3>
+        <p>Imagine Gold is climbing. It hits a peak of <strong>$2400</strong> and then drops to <strong>$2380</strong>. The buyers push it back up. If a candle closes its body at <strong>$2405</strong>, we have a BOS. If it wicks to $2405 but closes the body at $2398, the structure is NOT broken, and this is a false breakout trap.</p>
+      </div>
+    </div>
+
+    <!-- CHAPTER 2 -->
+    <div class="page-break">
+      <div class="section-title">Chapter 2: CHOCH (Change of Character)</div>
+      <div class="card">
+        <p><strong>CHOCH (Change of Character)</strong> is the first signal of a structural trend reversal. It occurs when the price fails to hold the previous swing trend leg and breaks the lowest pullback support level (for a transition from bullish to bearish).</p>
+        
+        <div class="formula-box">
+          <strong>Rule of Confirmation:</strong> A bullish trend changes character when the price breaks the **lowest swing low pullback** that led to the highest swing high.
+        </div>
+
+        <div class="chart-container">
+          <!-- CHOCH SVG CHART -->
+          <svg width="600" height="300" viewBox="0 0 600 300">
+            <!-- Grid Lines -->
+            <line x1="50" y1="80" x2="550" y2="80" stroke="#292524" stroke-dasharray="2" />
+            <line x1="50" y1="180" x2="550" y2="180" stroke="#292524" stroke-dasharray="2" />
+
+            <!-- Candle 1 (Bullish Leg Low) -->
+            <line x1="100" y1="150" x2="100" y2="240" stroke="#10b981" stroke-width="2" />
+            <rect x="90" y="160" width="20" height="60" fill="#10b981" rx="2" />
+
+            <!-- Candle 2 (Bearish Pullback - Swing Low) -->
+            <line x1="200" y1="160" x2="200" y2="240" stroke="#ef4444" stroke-width="2" />
+            <rect x="190" y="180" width="20" height="40" fill="#ef4444" rx="2" />
+            <text x="200" y="260" fill="#a8a29e" font-size="10" text-anchor="middle" font-family="monospace">Swing Low (Pullback)</text>
+
+            <!-- Line at Swing Low -->
+            <line x1="200" y1="180" x2="480" y2="180" stroke="#ef4444" stroke-width="2" stroke-dasharray="4" />
+            <text x="320" y="170" fill="#ef4444" font-size="12" font-weight="bold" font-family="monospace">CHOCH Trigger Line</text>
+
+            <!-- Candle 3 (Highest Swing High) -->
+            <line x1="300" y1="70" x2="300" y2="170" stroke="#10b981" stroke-width="2" />
+            <rect x="290" y="90" width="20" height="60" fill="#10b981" rx="2" />
+            <text x="300" y="60" fill="#a8a29e" font-size="10" text-anchor="middle" font-family="monospace">Highest High</text>
+
+            <!-- Candle 4 (Reversal leg down) -->
+            <line x1="400" y1="140" x2="400" y2="220" stroke="#ef4444" stroke-width="2" />
+            <rect x="390" y="150" width="20" height="50" fill="#ef4444" rx="2" />
+
+            <!-- Candle 5 (Breaking Swing Low - Body Close) -->
+            <line x1="480" y1="160" x2="480" y2="260" stroke="#ef4444" stroke-width="2" />
+            <rect x="470" y="190" width="20" height="60" fill="#ef4444" rx="2" />
+
+            <!-- Annotations -->
+            <circle cx="480" cy="190" r="5" fill="#ef4444" />
+            <path d="M 490 220 L 530 240" stroke="#ef4444" stroke-width="2" fill="none" />
+            <text x="540" y="245" fill="#ef4444" font-size="11" font-weight="bold" font-family="monospace">CHOCH CONFIRMED</text>
+            <text x="540" y="260" fill="#a8a29e" font-size="9" font-family="monospace">(Trend Shift Bearish)</text>
+          </svg>
+        </div>
+
+        <h3>Easy Practical Example:</h3>
+        <p>EUR/USD climbs to <strong>1.1000</strong>, pullbacks down to <strong>1.0950</strong>, then expansions up to <strong>1.1050</strong>. The key support level is the pullback low at <strong>1.0950</strong>. If price drops and a candle closes at <strong>1.0945</strong>, it has broken the swing low. This is a CHOCH, telling us the trend is changing from bullish to bearish.</p>
+      </div>
+    </div>
+
+    <!-- CHAPTER 3 -->
+    <div class="page-break">
+      <div class="section-title">Chapter 3: CISD (Change in State of Delivery)</div>
+      <div class="card">
+        <p><strong>CISD (Change in State of Delivery)</strong> is the earliest entry confirmation signal in institutional trading. It confirms that the algorithm has shifted its delivery bias, allowing entries at the extreme peak before the structure low (CHOCH) breaks.</p>
+        
+        <div class="formula-box">
+          <strong>Bearish CISD Definition:</strong> Uptrend peaks. The body of a subsequent bearish down-candle <strong>closes completely below the OPEN price of the last bullish candle</strong>.
+        </div>
+
+        <div class="chart-container">
+          <!-- CISD SVG CHART -->
+          <svg width="600" height="300" viewBox="0 0 600 300">
+            <!-- Grid Lines -->
+            <line x1="50" y1="120" x2="550" y2="120" stroke="#292524" stroke-dasharray="2" />
+            <line x1="50" y1="200" x2="550" y2="200" stroke="#292524" stroke-dasharray="2" />
+
+            <!-- Candle 1 (Bullish Expansion Candle) -->
+            <line x1="200" y1="100" x2="200" y2="220" stroke="#10b981" stroke-width="2" />
+            <rect x="190" y="120" width="20" height="80" fill="#10b981" rx="2" />
+            <text x="175" y="205" fill="#10b981" font-size="10" font-family="monospace">Open (120)</text>
+
+            <!-- Line at Bullish Open -->
+            <line x1="190" y1="200" x2="480" y2="200" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4" />
+            <text x="280" y="190" fill="#f59e0b" font-size="11" font-weight="bold" font-family="monospace">CISD Boundary (Green Open)</text>
+
+            <!-- Candle 2 (Bearish Shift Candle - Closes below Green Open) -->
+            <line x1="380" y1="80" x2="380" y2="250" stroke="#ef4444" stroke-width="2" />
+            <rect x="370" y="100" width="20" height="120" fill="#ef4444" rx="2" />
+            <text x="400" y="225" fill="#ef4444" font-size="10" font-family="monospace">Close (220)</text>
+
+            <!-- Annotations -->
+            <circle cx="380" cy="220" r="6" fill="#f59e0b" />
+            <path d="M 390 220 L 450 250" stroke="#f59e0b" stroke-width="2" fill="none" />
+            <text x="460" y="250" fill="#f59e0b" font-size="11" font-weight="bold" font-family="monospace">CISD REVERSAL</text>
+            <text x="460" y="265" fill="#a8a29e" font-size="9" font-family="monospace">(Body Closed below Open)</text>
+          </svg>
+        </div>
+
+        <h3>Easy Practical Example:</h3>
+        <p>In Gold, the final bullish candle opens at <strong>$2390</strong> and closes at <strong>$2400</strong>. The next candle is red and strongly drops, closing its body at <strong>$2388</strong>. Since $2388 is below the open of the green candle ($2390), we have a Bearish CISD. We can execute a sell immediately with Stop Loss just above the high ($2402) for a tight R:R trade.</p>
+      </div>
+    </div>
+
+    <!-- CHAPTER 4 -->
+    <div class="page-break">
+      <div class="section-title">Chapter 4: Order Blocks (OB) & Fair Value Gaps (FVG)</div>
+      <div class="card">
+        <p><strong>Order Blocks (OB)</strong> and <strong>Fair Value Gaps (FVG)</strong> are the footprint zones where smart money accumates positions. Gaps act as price magnets, while blocks act as institutional support/resistance walls.</p>
+        
+        <div class="formula-box">
+          <strong>FVG Definition:</strong> An imbalance zone between the <strong>top wick of Candle 1</strong> and the <strong>bottom wick of Candle 3</strong> in a strong 3-candle expansion.
+        </div>
+
+        <div class="chart-container">
+          <!-- OB & FVG SVG CHART -->
+          <svg width="600" height="300" viewBox="0 0 600 300">
+            <!-- Candle 1 (Bullish Source - Order Block) -->
+            <line x1="120" y1="180" x2="120" y2="260" stroke="#ef4444" stroke-width="2" />
+            <rect x="110" y="200" width="20" height="50" fill="#ef4444" rx="2" />
+            <!-- OB box highlight -->
+            <rect x="105" y="195" width="130" height="60" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-dasharray="2" />
+            <text x="180" y="240" fill="#10b981" font-size="10" font-weight="bold" font-family="monospace">Bullish Order Block</text>
+
+            <!-- Candle 2 (Strong Expansion Candle) -->
+            <line x1="220" y1="80" x2="220" y2="220" stroke="#10b981" stroke-width="2" />
+            <rect x="210" y="90" width="20" height="110" fill="#10b981" rx="2" />
+
+            <!-- Candle 3 (Follow-through Candle) -->
+            <line x1="320" y1="30" x2="320" y2="120" stroke="#10b981" stroke-width="2" />
+            <rect x="310" y="40" width="20" height="65" fill="#10b981" rx="2" />
+
+            <!-- FVG boundaries lines -->
+            <line x1="120" y1="180" x2="320" y2="180" stroke="#d97757" stroke-width="1.5" stroke-dasharray="3" />
+            <line x1="320" y1="120" x2="320" y2="120" stroke="#d97757" stroke-width="1.5" stroke-dasharray="3" />
+            <path d="M 320 120 L 220 120" stroke="#d97757" stroke-width="1.5" stroke-dasharray="3" />
+            <rect x="120" y="120" width="200" height="60" fill="rgba(217,119,87,0.12)" />
+            <text x="220" y="155" fill="#d97757" font-size="11" font-weight="bold" font-family="monospace" text-anchor="middle">Fair Value Gap (FVG)</text>
+          </svg>
+        </div>
+
+        <h3>Easy Practical Example:</h3>
+        <p>If Gold shoots up from <strong>$2350 to $2390</strong>, it leaves a gap where no sellers had a chance to match bids. If the first candle wick ended at $2355, and the third candle's bottom wick reaches down only to $2375, the zone between <strong>$2355 and $2375</strong> is a Fair Value Gap. Price will pull back to fill this gap, tap the order block at $2350, and shoot up.</p>
+      </div>
+    </div>
+
+    <!-- CHAPTER 5 -->
+    <div class="page-break">
+      <div class="section-title">Chapter 5: Premium vs. Discount Zones</div>
+      <div class="card">
+        <p><strong>Premium & Discount Zones</strong> filter out bad trades by ensuring that institutional setups align with pricing value. Algorithms buy cheap (discount) and sell expensive (premium).</p>
+        
+        <div class="formula-box">
+          <strong>Equilibrium Formula:</strong> <br>
+          <code>Equilibrium = (Leg Swing High + Leg Swing Low) / 2</code>
+        </div>
+
+        <div class="chart-container">
+          <!-- PREMIUM DISCOUNT SVG -->
+          <svg width="600" height="300" viewBox="0 0 600 300">
+            <!-- Leg Low and High markers -->
+            <line x1="100" y1="50" x2="100" y2="250" stroke="#292524" stroke-width="1" />
+            
+            <!-- Shaded Premium Zone -->
+            <rect x="100" y="50" width="400" height="100" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" />
+            <text x="300" y="105" fill="#ef4444" font-size="14" font-weight="bold" text-anchor="middle" font-family="monospace">PREMIUM ZONE (Expensive - Sell Only)</text>
+
+            <!-- Equilibrium Middle Line -->
+            <line x1="90" y1="150" x2="510" y2="150" stroke="#3b82f6" stroke-width="2.5" />
+            <text x="520" y="154" fill="#3b82f6" font-size="12" font-weight="bold" font-family="monospace">Equilibrium (50%)</text>
+
+            <!-- Shaded Discount Zone -->
+            <rect x="100" y="150" width="400" height="100" fill="rgba(16,185,129,0.06)" stroke="rgba(16,185,129,0.2)" />
+            <text x="300" y="205" fill="#10b981" font-size="14" font-weight="bold" text-anchor="middle" font-family="monospace">DISCOUNT ZONE (Cheap - Buy Only)</text>
+
+            <!-- Leg labels -->
+            <text x="80" y="55" fill="#a8a29e" font-size="10" font-family="monospace">Swing High</text>
+            <text x="80" y="255" fill="#a8a29e" font-size="10" font-family="monospace">Swing Low</text>
+          </svg>
+        </div>
+
+        <h3>Easy Practical Example:</h3>
+        <p>If Gold is trading in a range between <strong>$2300 (Low) and $2400 (High)</strong>, the Equilibrium is <strong>$2350</strong>. Any Buy trade executed above $2350 is in the Premium Zone and is high-risk. We only look for Buy trades below $2350 (Discount Zone) and Sell trades above $2350 (Premium Zone).</p>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
