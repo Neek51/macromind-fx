@@ -93,6 +93,30 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
     const activePrice = prices.find((p: { symbol: string }) => p.symbol === symbol)?.price ?? 0;
     const activeSessions = getActiveSessions();
 
+    // Calculate Dealing Range & Equilibrium mathematically (based on the last 20 candles)
+    const recent20 = candles.slice(-20);
+    const dealingHigh = recent20.length > 0 ? Math.max(...recent20.map((c: { high: number }) => c.high)) : 0;
+    const dealingLow = recent20.length > 0 ? Math.min(...recent20.map((c: { low: number }) => c.low)) : 0;
+    const equilibrium = (dealingHigh + dealingLow) / 2;
+    const premiumDiscount = activePrice > equilibrium ? "premium" : activePrice < equilibrium ? "discount" : "equilibrium";
+
+    // Calculate CISD Shift mathematically
+    let cisdShift: "bullish" | "bearish" | "none" = "none";
+    if (candles.length >= 2) {
+      const c1 = candles[candles.length - 2];
+      const c2 = candles[candles.length - 1];
+      const c1IsBearish = c1.close < c1.open;
+      const c1IsBullish = c1.close > c1.open;
+      const c2IsBullish = c2.close > c2.open;
+      const c2IsBearish = c2.close < c2.open;
+
+      if (c1IsBearish && c2IsBullish && c2.close > c1.open) {
+        cisdShift = "bullish";
+      } else if (c1IsBullish && c2IsBearish && c2.close < c1.open) {
+        cisdShift = "bearish";
+      }
+    }
+
     if (!hasAIKey()) {
       // Return a structured mockup response so the frontend still renders beautifully
       const mockPrediction = {
@@ -115,6 +139,10 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
           activeFVG: activePrice ? { top: activePrice * 1.001, bottom: activePrice * 1.0002, type: "bullish" as const } : null,
           lastSweep: "Previous session low swept",
           inducementLevel: activePrice ? activePrice * 0.999 : null,
+          equilibrium: equilibrium || activePrice * 0.9995,
+          dealingRange: { high: dealingHigh || activePrice * 1.001, low: dealingLow || activePrice * 0.998 },
+          premiumDiscount: premiumDiscount,
+          cisdShift: cisdShift !== "none" ? cisdShift : "bullish" as const,
         },
         suggestedTrade: activePrice ? {
           direction: "buy" as const,
@@ -150,6 +178,13 @@ ${selfCalibrationText}
 Current Price: ${activePrice}
 Active Trading Session: ${activeSessions}
 
+Mathematical SMC Overlays:
+- Dealing Range High: ${dealingHigh}
+- Dealing Range Low: ${dealingLow}
+- Equilibrium (50% Fibonacci level): ${equilibrium}
+- Price Zone: ${premiumDiscount.toUpperCase()}
+- CISD State Shift: ${cisdShift.toUpperCase()}
+
 Recent ${interval} Candlestick Data (newest last):
 ${recentCandlesText}
 
@@ -165,7 +200,12 @@ SMC Strategy Guidelines:
 3. Scan for active Fair Value Gaps (FVG) - imbalances between candle 1 wick and candle 3 wick that price is likely to pull back and fill.
 4. Detect if a recent liquidity sweep has occurred (price piercing a previous high or low and reversing immediately).
 5. Identify the nearest Inducement (IDM) level - the first pullback low in an uptrend or high in a downtrend. Ensure we do not suggest entries at the IDM, but wait for it to be swept.
-6. Provide a suggested trade setup (BUY or SELL) ONLY if a valid setup aligns with the trend. The trade MUST have a Risk-to-Reward ratio (R:R) of at least 1:2.
+6. Premium vs. Discount Entry Rule:
+   - For a suggested BUY setup: The entry price MUST be below the Equilibrium level (in the Discount zone).
+   - For a suggested SELL setup: The entry price MUST be above the Equilibrium level (in the Premium zone).
+7. CISD Entry Confirmation:
+   - If a CISD Shift is active (e.g. Bullish CISD), favor entering in that direction, using the sweep candle high/low as stop-loss reference for a tighter exit.
+8. Provide a suggested trade setup (BUY or SELL) ONLY if a valid setup aligns with the trend. The trade MUST have a Risk-to-Reward ratio (R:R) of at least 1:2.
 
 You MUST return ONLY a valid JSON object matching this exact TypeScript structure:
 {
@@ -216,6 +256,15 @@ Do not add markdown formatting or backticks around the JSON. Return only the raw
 
     try {
       const data = JSON.parse(result.content.trim());
+      
+      // Inject exact mathematical SMC overlays
+      if (data.smcFeatures) {
+        data.smcFeatures.equilibrium = equilibrium;
+        data.smcFeatures.dealingRange = { high: dealingHigh, low: dealingLow };
+        data.smcFeatures.premiumDiscount = premiumDiscount;
+        data.smcFeatures.cisdShift = cisdShift;
+      }
+
       return NextResponse.json({
         data: {
           ...data,

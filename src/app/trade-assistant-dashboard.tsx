@@ -249,10 +249,24 @@ export function TradeAssistantDashboard() {
     accountSize: Number(accountSize), riskPercent: Number(riskPercent), entry: Number(entry), stop: Number(stop), target: Number(target),
   }), [accountSize, riskPercent, entry, stop, target]);
 
+  const isDirectionBuy = prediction?.suggestedTrade?.direction === "buy" || direction === "buy";
+  const pricingLevel = Number(entry) || (prediction?.suggestedTrade?.entry) || (asset?.price ?? 0);
+  const hasEquilibrium = prediction?.smcFeatures?.equilibrium;
+  const passesEquilibrium = hasEquilibrium 
+    ? (isDirectionBuy ? pricingLevel <= hasEquilibrium : pricingLevel >= hasEquilibrium)
+    : true;
+
+  const activeCisd = prediction?.smcFeatures?.cisdShift;
+  const passesCisd = activeCisd && activeCisd !== "none"
+    ? (isDirectionBuy ? activeCisd === "bullish" : activeCisd === "bearish")
+    : true;
+
   const setupChecks = [
     { label: "Verified price feed is available", pass: Boolean(asset && !asset.isFallback) },
     { label: "No high-impact event inside the safety window", pass: safety.verdict !== "NO TRADE" },
     { label: "Daily trend is not neutral/unavailable", pass: context.trend === "bullish" || context.trend === "bearish" },
+    { label: `Price zone validated: ${isDirectionBuy ? 'Discount (Buy)' : 'Premium (Sell)'}`, pass: passesEquilibrium },
+    { label: "CISD structural pricing shift aligns with bias", pass: passesCisd },
     { label: "Entry confirmation observed on your chart", pass: confirmation },
     { label: "Risk plan has at least 1:2 reward", pass: Boolean(riskPlan && riskPlan.riskReward >= 2) },
   ];
@@ -840,10 +854,43 @@ export function TradeAssistantDashboard() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center pb-1">
-                  <span className="text-slate-500 dark:text-slate-400 font-bold">Inducement Level (IDM):</span>
+                <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-2.5">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold font-sans">Inducement Level (IDM):</span>
                   <span className="font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded text-sm">
                     {prediction.smcFeatures.inducementLevel ? formatPrice(symbol, prediction.smcFeatures.inducementLevel) : "None"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-2.5">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold font-sans">Equilibrium (50% Fib):</span>
+                  <span className="font-mono font-black text-slate-800 dark:text-slate-200 text-sm">
+                    {prediction.smcFeatures.equilibrium ? formatPrice(symbol, prediction.smcFeatures.equilibrium) : "None"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center border-b border-[var(--card-border)] pb-2.5">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold font-sans">Premium / Discount Zone:</span>
+                  <span className={`font-mono font-black text-xs px-2.5 py-0.5 rounded uppercase ${
+                    prediction.smcFeatures.premiumDiscount === "discount" 
+                      ? "bg-emerald-500/10 text-emerald-600" 
+                      : prediction.smcFeatures.premiumDiscount === "premium" 
+                      ? "bg-red-500/10 text-red-500" 
+                      : "bg-slate-500/10 text-slate-500"
+                  }`}>
+                    {prediction.smcFeatures.premiumDiscount ?? "None"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pb-1">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold font-sans">CISD State Shift:</span>
+                  <span className={`font-mono font-black text-xs px-2.5 py-0.5 rounded uppercase ${
+                    prediction.smcFeatures.cisdShift === "bullish" 
+                      ? "bg-emerald-500/10 text-emerald-600" 
+                      : prediction.smcFeatures.cisdShift === "bearish" 
+                      ? "bg-red-500/10 text-red-500" 
+                      : "bg-slate-500/10 text-slate-500"
+                  }`}>
+                    {prediction.smcFeatures.cisdShift && prediction.smcFeatures.cisdShift !== "none" ? `${prediction.smcFeatures.cisdShift} Shift` : "No Shift"}
                   </span>
                 </div>
               </div>

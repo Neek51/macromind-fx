@@ -179,6 +179,10 @@ export type AIPrediction = {
     activeFVG: { top: number; bottom: number; type: "bullish" | "bearish" } | null;
     lastSweep: string | null;
     inducementLevel: number | null;
+    equilibrium?: number | null;
+    dealingRange?: { high: number; low: number } | null;
+    premiumDiscount?: "premium" | "discount" | "equilibrium" | null;
+    cisdShift?: "bullish" | "bearish" | "none" | null;
   };
   suggestedTrade: {
     direction: "buy" | "sell";
