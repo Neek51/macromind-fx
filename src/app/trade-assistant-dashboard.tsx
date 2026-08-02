@@ -26,6 +26,23 @@ const emptyContext = {
   nearestSupport: null as number | null, nearestResistance: null as number | null,
 };
 
+function formatUtcRangeToLocal(startUtcHour: number, endUtcHour: number): string {
+  try {
+    const now = new Date();
+    const startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), startUtcHour, 0, 0));
+    const endDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), endUtcHour, 0, 0));
+
+    const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+    const startStr = startDate.toLocaleTimeString([], options);
+    const endStr = endDate.toLocaleTimeString([], options);
+    
+    const tzName = new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || "Local";
+    return `${startStr} - ${endStr} (${tzName})`;
+  } catch {
+    return `${String(startUtcHour).padStart(2, "0")}:00 - ${String(endUtcHour).padStart(2, "0")}:00 UTC`;
+  }
+}
+
 export function TradeAssistantDashboard() {
   const [symbol, setSymbol] = useState("XAU/USD");
   const [assets, setAssets] = useState<LiveAsset[]>([]);
@@ -966,9 +983,9 @@ export function TradeAssistantDashboard() {
 
             <div className="mt-4 space-y-3.5">
               {[
-                { name: "Tokyo Session (Asia)", active: sessionStatus.tokyo, hours: "00:00 - 09:00 UTC" },
-                { name: "London Session (Europe)", active: sessionStatus.london, hours: "08:00 - 17:00 UTC" },
-                { name: "New York Session (US)", active: sessionStatus.newYork, hours: "13:00 - 22:00 UTC" },
+                { name: "Tokyo Session (Asia)", active: sessionStatus.tokyo, hours: formatUtcRangeToLocal(0, 9) },
+                { name: "London Session (Europe)", active: sessionStatus.london, hours: formatUtcRangeToLocal(8, 17) },
+                { name: "New York Session (US)", active: sessionStatus.newYork, hours: formatUtcRangeToLocal(13, 22) },
               ].map((s) => (
                 <div key={s.name} className="flex justify-between items-center border-b border-[var(--card-border)] pb-2.5 last:border-b-0 last:pb-0">
                   <div>
