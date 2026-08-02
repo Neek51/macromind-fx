@@ -154,7 +154,21 @@ export function PredictionChart({
             vertLines: { color: gridColor },
             horzLines: { color: gridColor },
           },
-          crosshair: { mode: 1 },
+          crosshair: {
+            mode: 0, // CrosshairMode.Normal (0): moves smoothly following the cursor exact coordinate
+            vertLine: {
+              color: isDark ? "rgba(224, 224, 224, 0.3)" : "rgba(30, 30, 30, 0.3)",
+              width: 1,
+              style: 3, // Dotted style
+              labelBackgroundColor: isDark ? "#292524" : "#e5e7eb",
+            },
+            horzLine: {
+              color: isDark ? "rgba(224, 224, 224, 0.3)" : "rgba(30, 30, 30, 0.3)",
+              width: 1,
+              style: 3, // Dotted style
+              labelBackgroundColor: isDark ? "#292524" : "#e5e7eb",
+            }
+          },
           rightPriceScale: { borderColor: axisBorderColor },
           timeScale: { 
             borderColor: axisBorderColor, 
