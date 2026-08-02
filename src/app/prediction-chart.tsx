@@ -156,7 +156,37 @@ export function PredictionChart({
           },
           crosshair: { mode: 1 },
           rightPriceScale: { borderColor: axisBorderColor },
-          timeScale: { borderColor: axisBorderColor, timeVisible: true },
+          timeScale: { 
+            borderColor: axisBorderColor, 
+            timeVisible: true,
+            tickMarkFormatter: (time: unknown) => {
+              try {
+                const timestamp = typeof time === "number" ? time * 1000 : new Date(time as string).getTime();
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+              } catch {
+                return String(time);
+              }
+            }
+          },
+          localization: {
+            timeFormatter: (time: unknown) => {
+              try {
+                const timestamp = typeof time === "number" ? time * 1000 : new Date(time as string).getTime();
+                const date = new Date(timestamp);
+                return date.toLocaleString([], {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                });
+              } catch {
+                return String(time);
+              }
+            }
+          }
         });
 
         chartInstanceRef.current = chart;
