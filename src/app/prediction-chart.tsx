@@ -40,11 +40,32 @@ export function PredictionChart({
     });
     priceLinesRef.current = [];
 
-    // Helper to draw horizontal lines with labels
-    const drawLine = (price: number, label: string, color: string, style = 2, width = 1) => {
+    // Helper to draw horizontal lines with labels (made extremely robust against LLM parser variations)
+    const drawLine = (price: unknown, label: string, color: string, style = 2, width = 1) => {
       try {
+        let numericPrice: number;
+        if (typeof price === "number") {
+          numericPrice = price;
+        } else if (typeof price === "string") {
+          numericPrice = parseFloat(price.replace(/[^0-9.-]/g, ""));
+        } else if (price && typeof price === "object") {
+          const obj = price as Record<string, unknown>;
+          const val = obj.price ?? obj.value ?? obj.level ?? obj.priceValue ?? obj.high ?? obj.low ?? obj.top ?? obj.bottom;
+          if (typeof val === "number") {
+            numericPrice = val;
+          } else if (typeof val === "string") {
+            numericPrice = parseFloat(val.replace(/[^0-9.-]/g, ""));
+          } else {
+            return;
+          }
+        } else {
+          return;
+        }
+
+        if (isNaN(numericPrice) || !isFinite(numericPrice)) return;
+
         const line = series.createPriceLine({
-          price,
+          price: numericPrice,
           color,
           lineWidth: width as LineWidth,
           lineStyle: style, // 0 = Solid, 1 = Dotted, 2 = Dashed
