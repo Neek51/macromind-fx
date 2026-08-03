@@ -6,12 +6,7 @@ const YAHOO_SYMBOLS: Record<string, string> = {
   "AUD/USD": "AUDUSD=X", "USD/CAD": "USDCAD=X", "BTC/USD": "BTC-USD", "ETH/USD": "ETH-USD",
 };
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const symbol = searchParams.get("symbol") ?? "XAU/USD";
-  const range = searchParams.get("range");
-  let interval = searchParams.get("interval") ?? "1d";
-
+export async function getHistoricalCandles(symbol: string, interval: string, range?: string) {
   const yahooSymbol = YAHOO_SYMBOLS[symbol] ?? "GC=F";
 
   // 1. Map intervals and determine default safe ranges to prevent Yahoo 400 errors
@@ -59,74 +54,90 @@ export async function GET(request: Request) {
   }
 
   const yahooRange = range ?? defaultRange;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${yahooInterval}&range=${yahooRange}`;
+  
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    next: { revalidate: 60 }, // Revalidate historical data faster (every minute)
+  });
 
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${yahooInterval}&range=${yahooRange}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      next: { revalidate: 60 }, // Revalidate historical intraday data faster (every minute)
+  if (!res.ok) {
+    throw new Error(`Yahoo Finance request failed: ${res.statusText}`);
+  }
+
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  const timestamps: number[] = result?.timestamp ?? [];
+  const q = result?.indicators?.quote?.[0];
+
+  if (!q || !q.open || !q.close) {
+    throw new Error("No candle data available from Yahoo");
+  }
+
+  let candles = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    if (q.open[i] == null || q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
+    candles.push({
+      time: timestamps[i],
+      open: q.open[i],
+      high: q.high[i],
+      low: q.low[i],
+      close: q.close[i],
+      volume: q.volume[i] ?? 0,
     });
+  }
 
-    if (!res.ok) {
-      return NextResponse.json({ error: `Yahoo Finance request failed: ${res.statusText}` }, { status: 502 });
-    }
+  // 2. Perform resampling if requested (e.g. 1m -> 3m, or 1h -> 4h)
+  if (resampleFactor > 1 && candles.length > 0) {
+    const resampled = [];
+    for (let i = 0; i < candles.length; i += resampleFactor) {
+      const chunk = candles.slice(i, i + resampleFactor);
+      const first = chunk[0];
+      const last = chunk[chunk.length - 1];
 
-    const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    const timestamps: number[] = result?.timestamp ?? [];
-    const q = result?.indicators?.quote?.[0];
+      const highs = chunk.map((c) => c.high);
+      const lows = chunk.map((c) => c.low);
+      const totalVolume = chunk.reduce((sum, c) => sum + (c.volume ?? 0), 0);
 
-    if (!q || !q.open || !q.close) {
-      return NextResponse.json({ error: "No candle data available from Yahoo" }, { status: 502 });
-    }
-
-    let candles = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (q.open[i] == null || q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
-      candles.push({
-        time: timestamps[i],
-        open: q.open[i],
-        high: q.high[i],
-        low: q.low[i],
-        close: q.close[i],
-        volume: q.volume[i] ?? 0,
+      resampled.push({
+        time: first.time,
+        open: first.open,
+        high: Math.max(...highs),
+        low: Math.min(...lows),
+        close: last.close,
+        volume: totalVolume,
       });
     }
+    candles = resampled;
+  }
 
-    // 2. Perform resampling if requested (e.g. 1m -> 3m, or 1h -> 4h)
-    if (resampleFactor > 1 && candles.length > 0) {
-      const resampled = [];
-      for (let i = 0; i < candles.length; i += resampleFactor) {
-        const chunk = candles.slice(i, i + resampleFactor);
-        const first = chunk[0];
-        const last = chunk[chunk.length - 1];
+  return {
+    candles,
+    yahooRange,
+    interval,
+  };
+}
 
-        const highs = chunk.map((c) => c.high);
-        const lows = chunk.map((c) => c.low);
-        const totalVolume = chunk.reduce((sum, c) => sum + (c.volume ?? 0), 0);
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get("symbol") ?? "XAU/USD";
+    const range = searchParams.get("range") ?? undefined;
+    const interval = searchParams.get("interval") ?? "1d";
 
-        resampled.push({
-          time: first.time,
-          open: first.open,
-          high: Math.max(...highs),
-          low: Math.min(...lows),
-          close: last.close,
-          volume: totalVolume,
-        });
-      }
-      candles = resampled;
-    }
+    const { candles, yahooRange, interval: finalInterval } = await getHistoricalCandles(symbol, interval, range);
 
     return NextResponse.json({
       data: candles,
       symbol,
       range: yahooRange,
-      interval,
+      interval: finalInterval,
       count: candles.length,
       source: "Yahoo Finance",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Historical fetch error:", error);
-    return NextResponse.json({ error: "Failed to fetch historical data" }, { status: 502 });
+    const msg = error instanceof Error ? error.message : "Failed to fetch historical data";
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

@@ -183,6 +183,8 @@ export type AIPrediction = {
     dealingRange?: { high: number; low: number } | null;
     premiumDiscount?: "premium" | "discount" | "equilibrium" | null;
     cisdShift?: "bullish" | "bearish" | "none" | null;
+    htfTrend?: "bullish" | "bearish" | "neutral" | null;
+    htfInterval?: string | null;
   };
   suggestedTrade: {
     direction: "buy" | "sell";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readDb, writeDb } from "../../lib/db";
 
 const DISPLAY_NAMES: Record<string, string> = {
   "XAU/USD": "Gold Spot",
@@ -129,6 +130,90 @@ export async function GET() {
 
   if (data.length === 0) {
     return NextResponse.json({ error: "All verified market data sources failed." }, { status: 502 });
+  }
+
+  // Autonomous server-side trade monitoring (checks TP/SL exits even if user is offline)
+  try {
+    const db = readDb();
+    const openTrades = db.trades.filter(t => t.status === "open");
+    let dbUpdated = false;
+
+    if (openTrades.length > 0) {
+      for (const trade of openTrades) {
+        const livePriceObj = data.find(p => p.symbol === trade.symbol);
+        if (!livePriceObj) continue;
+
+        const currentPrice = livePriceObj.price;
+        const isBuy = trade.direction === "buy";
+        let shouldClose = false;
+        let hitType: "TP" | "SL" = "TP";
+
+        if (isBuy) {
+          if (currentPrice >= trade.takeProfit) {
+            shouldClose = true;
+            hitType = "TP";
+          } else if (currentPrice <= trade.stopLoss) {
+            shouldClose = true;
+            hitType = "SL";
+          }
+        } else {
+          if (currentPrice <= trade.takeProfit) {
+            shouldClose = true;
+            hitType = "TP";
+          } else if (currentPrice >= trade.stopLoss) {
+            shouldClose = true;
+            hitType = "SL";
+          }
+        }
+
+        if (shouldClose) {
+          const exitPrice = hitType === "TP" ? trade.takeProfit : trade.stopLoss;
+          const tickDiff = isBuy ? (exitPrice - trade.entry) : (trade.entry - exitPrice);
+          const riskDistance = Math.abs(trade.entry - trade.stopLoss);
+          const pnlR = riskDistance > 0 ? tickDiff / riskDistance : 0;
+
+          const tradeRiskPercent = 0.5; // standard fallback
+          const pnlPercentage = pnlR * tradeRiskPercent;
+          const pnlAmount = pnlR * (db.balance * tradeRiskPercent / 100);
+
+          trade.status = "closed";
+          trade.exitPrice = exitPrice;
+          trade.closedAt = new Date().toISOString();
+          trade.pnlPercentage = Number(pnlPercentage.toFixed(2));
+          trade.pnlAmount = Number(pnlAmount.toFixed(2));
+
+          db.balance = Number((db.balance + pnlAmount).toFixed(2));
+          dbUpdated = true;
+
+          // Asynchronously trigger postmortem reviews via server
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          void fetch(`${appUrl}/api/trade-audit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trade }),
+          })
+            .then(res => res.json())
+            .then(json => {
+              if (json?.data) {
+                const freshDb = readDb();
+                const idx = freshDb.trades.findIndex(t => t.id === trade.id);
+                if (idx !== -1) {
+                  freshDb.trades[idx].postmortem = json.data.review;
+                  freshDb.trades[idx].lesson = json.data.lesson;
+                  writeDb(freshDb);
+                }
+              }
+            })
+            .catch(() => null);
+        }
+      }
+
+      if (dbUpdated) {
+        writeDb(db);
+      }
+    }
+  } catch (dbErr) {
+    console.error("Autopilot server-side position monitor failed:", dbErr);
   }
 
   return NextResponse.json({ data, fetchedAt: new Date().toISOString() });

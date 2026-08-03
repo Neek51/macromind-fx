@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { GET as getPrices } from "../prices/route";
 import { GET as getNews } from "../news/route";
 import { GET as getCalendar } from "../calendar/route";
-import { GET as getHistory } from "../history/route";
+import { getHistoricalCandles } from "../history/route";
 import { callAI, hasAIKey } from "../ai-provider";
 import { scrapeTelegramChannel } from "../../lib/sentiment-scraper";
+import { calcEMA } from "../../lib/backtest";
 
 const DISPLAY_NAMES: Record<string, string> = {
   "XAU/USD": "Gold Spot",
@@ -41,12 +42,8 @@ async function fetchCalendar() {
 
 async function fetchCandles(symbol: string, interval: string) {
   try {
-    const url = `http://localhost/api/history?symbol=${encodeURIComponent(symbol)}&interval=${interval}`;
-    const req = new Request(url);
-    const res = await getHistory(req);
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.data ?? [];
+    const res = await getHistoricalCandles(symbol, interval);
+    return res.candles ?? [];
   } catch { return []; }
 }
 
@@ -59,6 +56,24 @@ async function fetchSentinelRumors() {
     return [...zeroHedge, ...forexLive].slice(0, 8);
   } catch {
     return [];
+  }
+}
+
+function getHigherTimeframe(ltf: string): string {
+  switch (ltf) {
+    case "1m":
+    case "3m":
+    case "5m":
+      return "1h";
+    case "15m":
+    case "30m":
+      return "1h";
+    case "1h":
+      return "4h";
+    case "4h":
+      return "1d";
+    default:
+      return "1d";
   }
 }
 
@@ -96,11 +111,13 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
   }
 
   try {
-    const [prices, news, calendar, candles, sentinelRumors] = await Promise.all([
+    const htf = getHigherTimeframe(interval);
+    const [prices, news, calendar, candles, htfCandles, sentinelRumors] = await Promise.all([
       fetchPrices(),
       fetchNews(),
       fetchCalendar(),
       fetchCandles(symbol, interval),
+      fetchCandles(symbol, htf),
       fetchSentinelRumors(),
     ]);
 
@@ -131,6 +148,16 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
       }
     }
 
+    // Calculate HTF context Trend
+    const htfEMA20List = htfCandles.length >= 20 ? calcEMA(htfCandles.map(c => c.close), 20) : [];
+    const htfEMA50List = htfCandles.length >= 50 ? calcEMA(htfCandles.map(c => c.close), 50) : [];
+    const htfEMA20 = htfEMA20List.length > 0 ? htfEMA20List.at(-1) : null;
+    const htfEMA50 = htfEMA50List.length > 0 ? htfEMA50List.at(-1) : null;
+    let htfTrend: "bullish" | "bearish" | "neutral" = "neutral";
+    if (htfEMA20 !== null && htfEMA50 !== null && htfEMA20 !== undefined && htfEMA50 !== undefined) {
+      htfTrend = htfEMA20 > htfEMA50 ? "bullish" : "bearish";
+    }
+
     if (!hasAIKey()) {
       // Return a structured mockup response so the frontend still renders beautifully
       const mockPrediction = {
@@ -157,6 +184,8 @@ Ensure your new suggested trade entry coordinates, SL/TP positions, and directio
           dealingRange: { high: dealingHigh || activePrice * 1.001, low: dealingLow || activePrice * 0.998 },
           premiumDiscount: premiumDiscount,
           cisdShift: cisdShift !== "none" ? cisdShift : "bullish" as const,
+          htfTrend: htfTrend,
+          htfInterval: htf,
         },
         suggestedTrade: activePrice ? {
           direction: "buy" as const,
@@ -201,9 +230,9 @@ ${sentinelText}
 
 This sentinel feed tracks fast-breaking macro rumors, central bank reserve updates, and geopolitical bulletins gathered directly from institutional trading desk feeds. Synthesize this data to detect immediate sentiment shifts (such as sudden treasury selloffs, central bank reserve restructuring, or geopolitical announcements) that may override standard technical indicators or RSS feeds.
 
-Mathematical SMC Overlays:
-- Dealing Range High: ${dealingHigh}
-- Dealing Range Low: ${dealingLow}
+Mathematical SMC Overlays & Multi-Timeframe Context:
+- Higher Timeframe (${htf}): Trend is ${htfTrend.toUpperCase()}
+- Lower Timeframe (${interval}): Dealing Range High: ${dealingHigh}, Low: ${dealingLow}
 - Equilibrium (50% Fibonacci level): ${equilibrium}
 - Price Zone: ${premiumDiscount.toUpperCase()}
 - CISD State Shift: ${cisdShift.toUpperCase()}
@@ -286,6 +315,8 @@ Do not add markdown formatting or backticks around the JSON. Return only the raw
         data.smcFeatures.dealingRange = { high: dealingHigh, low: dealingLow };
         data.smcFeatures.premiumDiscount = premiumDiscount;
         data.smcFeatures.cisdShift = cisdShift;
+        data.smcFeatures.htfTrend = htfTrend;
+        data.smcFeatures.htfInterval = htf;
       }
 
       return NextResponse.json({

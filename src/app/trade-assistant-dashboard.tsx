@@ -51,7 +51,12 @@ export function TradeAssistantDashboard() {
   
   // Lower timeframe candles for chart & scanning
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [candlesInterval, setCandlesInterval] = useState("15m");
+  const [candlesInterval, setCandlesInterval] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("macromind-timeframe") || "15m";
+    }
+    return "15m";
+  });
   const [chartLoading, setChartLoading] = useState(true);
 
   // AI Prediction state
@@ -69,6 +74,7 @@ export function TradeAssistantDashboard() {
   const [tradesList, setTradesList] = useState<VirtualTrade[]>([]);
   const [sentinelFeed, setSentinelFeed] = useState<SentinelItem[]>([]);
   const [sentinelLoading, setSentinelLoading] = useState(true);
+  const [lastExecuted, setLastExecuted] = useState("");
 
   // Manual Risk Planner inputs (kept for manual calculations if desired)
   const [accountSize, setAccountSize] = useState("1000");
@@ -124,11 +130,9 @@ export function TradeAssistantDashboard() {
   const getAIPrediction = useCallback(async (currentSymbol: string, interval: string) => {
     setPredictionLoading(true);
     try {
-      const savedTrades = localStorage.getItem("macromind-virtual-trades");
+      const closed = tradesList.filter((t) => t.status === "closed").slice(-5);
       let historyParam = "";
-      if (savedTrades) {
-        const trades: VirtualTrade[] = JSON.parse(savedTrades);
-        const closed = trades.filter((t) => t.status === "closed").slice(-5);
+      if (closed.length > 0) {
         const historyContext = closed.map((t) => ({
           symbol: t.symbol,
           direction: t.direction,
@@ -149,36 +153,27 @@ export function TradeAssistantDashboard() {
     } finally {
       setPredictionLoading(false);
     }
-  }, []);
+  }, [tradesList]);
 
-  // 4. Load Active Trade, Trades List, and balance states from localStorage
-  const syncActiveTrade = useCallback((currentSymbol: string) => {
-    const saved = localStorage.getItem("macromind-virtual-trades");
-    let trades: VirtualTrade[] = [];
-    if (saved) {
-      trades = JSON.parse(saved);
-      setTradesList(trades);
-      const openTrade = trades.find(t => t.symbol === currentSymbol && t.status === "open");
-      setActiveTrade(openTrade ?? null);
-    } else {
-      setTradesList([]);
-      setActiveTrade(null);
+  // 4. Load Active Trade, Trades List, and balance states from Server DB
+  const loadTradesData = useCallback(async (currentSymbol: string) => {
+    try {
+      const res = await fetch("/api/trades").catch(() => null);
+      if (!res || !res.ok) return;
+      const json = await res.json().catch(() => null);
+      if (json && json.success && json.data) {
+        const { trades, balance, autoPilot: apState, lastExecutedPrediction } = json.data;
+        setTradesList(trades);
+        const openTrade = trades.find((t: VirtualTrade) => t.symbol === currentSymbol && t.status === "open");
+        setActiveTrade(openTrade ?? null);
+        setVirtualBalance(balance);
+        setEditableBalance(String(balance));
+        setAutoPilot(apState);
+        setLastExecuted(lastExecutedPrediction || "");
+      }
+    } catch (err) {
+      console.error("Failed to sync trades data from server:", err);
     }
-
-    // Sync balance
-    const savedBalance = localStorage.getItem("macromind-virtual-balance");
-    if (savedBalance) {
-      setVirtualBalance(Number(savedBalance));
-      setEditableBalance(savedBalance);
-    } else {
-      localStorage.setItem("macromind-virtual-balance", "10000");
-      setVirtualBalance(10000);
-      setEditableBalance("10000");
-    }
-
-    // Sync AutoPilot state
-    const savedAutoPilot = localStorage.getItem("macromind-autopilot");
-    setAutoPilot(savedAutoPilot === "true");
   }, []);
 
   // Calculate dynamic trading statistics based on closed trades
@@ -198,6 +193,33 @@ export function TradeAssistantDashboard() {
       netPnl,
       netPnlPercent,
     };
+  }, [tradesList, virtualBalance]);
+
+  // Circuit Breaker: Max 3% daily drawdown or 3 consecutive losses
+  const dailyDrawdownExceeded = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const closedToday = tradesList.filter(
+      (t) => t.status === "closed" && t.closedAt && new Date(t.closedAt).getTime() >= startOfToday.getTime()
+    );
+    const dailyPnlAmount = closedToday.reduce((acc, t) => acc + (t.pnlAmount ?? 0), 0);
+    const maxDailyDrawdown = virtualBalance * 0.03; // 3% drawdown limit
+
+    if (dailyPnlAmount < 0 && Math.abs(dailyPnlAmount) >= maxDailyDrawdown) {
+      return true;
+    }
+
+    // Check for 3 consecutive losses
+    const sortedClosed = [...tradesList]
+      .filter((t) => t.status === "closed")
+      .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime());
+    if (sortedClosed.length >= 3) {
+      const last3 = sortedClosed.slice(0, 3);
+      const allLoss = last3.every((t) => (t.pnlAmount ?? 0) <= 0);
+      if (allLoss) return true;
+    }
+
+    return false;
   }, [tradesList, virtualBalance]);
 
   // Dynamic timezone session clocks & overlap tracker (updates real-time with the clock)
@@ -234,22 +256,41 @@ export function TradeAssistantDashboard() {
   }, [now]);
 
   // Reset Virtual Account Capital & Trades History
-  const handleResetAccount = () => {
+  const handleResetAccount = async () => {
     const cleanBalance = Number(editableBalance) || 10000;
-    localStorage.setItem("macromind-virtual-balance", String(cleanBalance));
-    localStorage.setItem("macromind-virtual-trades", JSON.stringify([]));
-    setVirtualBalance(cleanBalance);
-    setEditableBalance(String(cleanBalance));
-    setActiveTrade(null);
-    setTradesList([]);
-    alert(`Virtual account reset successfully with capital: $${cleanBalance}`);
+    try {
+      const res = await fetch("/api/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset", balance: cleanBalance }),
+      });
+      if (res.ok) {
+        setVirtualBalance(cleanBalance);
+        setEditableBalance(String(cleanBalance));
+        setActiveTrade(null);
+        setTradesList([]);
+        alert(`Virtual account reset successfully with capital: $${cleanBalance}`);
+      }
+    } catch (err) {
+      console.error("Failed to reset account:", err);
+    }
   };
 
   // Toggle Auto-Pilot execution state
-  const handleToggleAutoPilot = () => {
+  const handleToggleAutoPilot = async () => {
     const nextState = !autoPilot;
-    setAutoPilot(nextState);
-    localStorage.setItem("macromind-autopilot", String(nextState));
+    try {
+      const res = await fetch("/api/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update-autopilot", autoPilot: nextState }),
+      });
+      if (res.ok) {
+        setAutoPilot(nextState);
+      }
+    } catch (err) {
+      console.error("Failed to toggle autopilot:", err);
+    }
   };
 
   // Initialize clock and primary APIs (wrapped in setTimeout to prevent React 19 cascading renders warning)
@@ -292,15 +333,31 @@ export function TradeAssistantDashboard() {
     };
   }, []);
 
+  // Auto-Pilot Circuit Breaker Trigger (wrapped in setTimeout to prevent React 19 synchronous cascading render warnings)
+  useEffect(() => {
+    if (autoPilot && dailyDrawdownExceeded) {
+      const timer = setTimeout(() => {
+        setAutoPilot(false);
+        void fetch("/api/trades", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "update-autopilot", autoPilot: false }),
+        }).catch(() => null);
+        alert("⚠️ Auto-Pilot Circuit Breaker Triggered: Daily drawdown limit of 3% or 3 consecutive losses exceeded. Auto-Pilot has been disabled for safety.");
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPilot, dailyDrawdownExceeded]);
+
   // Load symbol-specific data asynchronously inside setTimeout to comply with React 19 styling rules
   useEffect(() => {
     const timer = setTimeout(() => {
       void loadHistoryData(symbol, candlesInterval);
       void getAIPrediction(symbol, candlesInterval);
-      syncActiveTrade(symbol);
+      void loadTradesData(symbol);
     }, 0);
     return () => clearTimeout(timer);
-  }, [symbol, candlesInterval, loadHistoryData, getAIPrediction, syncActiveTrade]);
+  }, [symbol, candlesInterval, loadHistoryData, getAIPrediction, loadTradesData]);
 
   // Calculate daily indicators context using useMemo (pure render loop, no state updates inside render)
   const context = useMemo(() => {
@@ -343,10 +400,17 @@ export function TradeAssistantDashboard() {
     ? (isDirectionBuy ? activeCisd === "bullish" : activeCisd === "bearish")
     : true;
 
+  const htfTrendValue = prediction?.smcFeatures?.htfTrend;
+  const htfLabel = prediction?.smcFeatures?.htfInterval ?? "1H";
+  const htfAligned = htfTrendValue && htfTrendValue !== "neutral"
+    ? (isDirectionBuy ? htfTrendValue === "bullish" : htfTrendValue === "bearish")
+    : true;
+
   const setupChecks = [
     { label: "Verified price feed is available", pass: Boolean(asset && !asset.isFallback) },
     { label: "No high-impact event inside the safety window", pass: safety.verdict !== "NO TRADE" },
     { label: "Daily trend is not neutral/unavailable", pass: context.trend === "bullish" || context.trend === "bearish" },
+    { label: `HTF Trend confirms bias (${htfLabel}: ${htfTrendValue?.toUpperCase() ?? "NEUTRAL"})`, pass: htfAligned },
     { label: `Price zone validated: ${isDirectionBuy ? 'Discount (Buy)' : 'Premium (Sell)'}`, pass: passesEquilibrium },
     { label: "CISD structural pricing shift aligns with bias", pass: passesCisd },
     { label: "Entry confirmation observed on your chart", pass: confirmation },
@@ -355,7 +419,7 @@ export function TradeAssistantDashboard() {
   const setupReady = setupChecks.every((check) => check.pass);
 
   // Execute AI suggested paper trade
-  const handleExecutePaperTrade = useCallback(() => {
+  const handleExecutePaperTrade = useCallback(async () => {
     if (!prediction?.suggestedTrade || !asset) return;
 
     // Block executions when the market is closed
@@ -392,7 +456,6 @@ export function TradeAssistantDashboard() {
       id: Math.random().toString(36).substring(2, 9),
       symbol,
       direction: prediction.suggestedTrade.direction,
-      // Record fill at the exact spot price at the time of entry
       entry: currentPrice,
       stopLoss: prediction.suggestedTrade.stopLoss,
       takeProfit: prediction.suggestedTrade.takeProfit,
@@ -410,103 +473,137 @@ export function TradeAssistantDashboard() {
       lots: computedLots,
     };
 
-    const saved = localStorage.getItem("macromind-virtual-trades");
-    const trades = saved ? JSON.parse(saved) : [];
-    trades.push(newTrade);
-    localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
-    setActiveTrade(newTrade);
-    
-    // Save prediction execution tag to prevent double trading this setup
-    if (prediction.computedAt) {
-      localStorage.setItem("macromind-last-executed-prediction", prediction.computedAt);
+    try {
+      const res = await fetch("/api/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create-trade", trade: newTrade }),
+      });
+      if (res.ok) {
+        setActiveTrade(newTrade);
+        setTradesList((prev) => [...prev, newTrade]);
+        
+        if (prediction.computedAt) {
+          setLastExecuted(prediction.computedAt);
+          await fetch("/api/trades", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "update-last-executed", computedAt: prediction.computedAt }),
+          }).catch(() => null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to execute trade:", err);
     }
-    
-    // Sync list
-    setTradesList(trades);
   }, [prediction, symbol, asset, isMarketClosed, candlesInterval, virtualBalance, riskPercent]);
 
-  // AI Auto-Pilot automated execution loop trigger
+  // AI Auto-Pilot automated execution loop trigger (only executes when setupChecks pass)
   useEffect(() => {
-    if (autoPilot && prediction?.suggestedTrade && !activeTrade && asset && !isMarketClosed) {
+    if (autoPilot && prediction?.suggestedTrade && !activeTrade && asset && !isMarketClosed && setupReady) {
       // Prevent infinite loops on the same prediction instance
-      const savedLast = localStorage.getItem("macromind-last-executed-prediction");
-      if (prediction.computedAt && prediction.computedAt === savedLast) {
+      if (prediction.computedAt && prediction.computedAt === lastExecuted) {
         return;
       }
 
       const timer = setTimeout(() => {
-        handleExecutePaperTrade();
+        void handleExecutePaperTrade();
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [autoPilot, prediction, activeTrade, asset, handleExecutePaperTrade, isMarketClosed]);
+  }, [autoPilot, prediction, activeTrade, asset, handleExecutePaperTrade, isMarketClosed, setupReady, lastExecuted]);
 
   // Close virtual paper trade manually or automatically
-  const handleCloseTrade = useCallback((tradeId: string, exitPrice: number, hitType: "TP" | "SL" | "Manual") => {
-    const saved = localStorage.getItem("macromind-virtual-trades");
-    if (!saved) return;
-    const trades: VirtualTrade[] = JSON.parse(saved);
-    const index = trades.findIndex(t => t.id === tradeId);
-    if (index === -1) return;
+  const handleCloseTrade = useCallback(async (tradeId: string, exitPrice: number, hitType: "TP" | "SL" | "Manual") => {
+    const targetTrade = tradesList.find(t => t.id === tradeId);
+    if (!targetTrade) return;
 
-    const trade = trades[index];
-    trade.status = "closed";
-    trade.exitPrice = exitPrice;
-    trade.closedAt = new Date().toISOString();
-
-    const isBuy = trade.direction === "buy";
-    const tickDiff = isBuy ? (exitPrice - trade.entry) : (trade.entry - exitPrice);
-    const riskDistance = Math.abs(trade.entry - trade.stopLoss);
+    const isBuy = targetTrade.direction === "buy";
+    const tickDiff = isBuy ? (exitPrice - targetTrade.entry) : (targetTrade.entry - exitPrice);
+    const riskDistance = Math.abs(targetTrade.entry - targetTrade.stopLoss);
     const pnlR = riskDistance > 0 ? tickDiff / riskDistance : 0;
 
-    // Calculate compounding risk profit or loss relative to current virtual balance
-    const savedBalance = Number(localStorage.getItem("macromind-virtual-balance") ?? 10000);
     const tradeRiskPercent = Number(riskPercent);
     const pnlPercentage = pnlR * tradeRiskPercent;
-    const pnlAmount = pnlR * (savedBalance * tradeRiskPercent / 100);
+    const pnlAmount = pnlR * (virtualBalance * tradeRiskPercent / 100);
 
-    trade.pnlPercentage = pnlPercentage;
-    trade.pnlAmount = pnlAmount;
+    const closedAtStr = new Date().toISOString();
 
-    trades[index] = trade;
-    localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
-    
-    // Update global balance
-    const newBalance = savedBalance + pnlAmount;
-    localStorage.setItem("macromind-virtual-balance", String(newBalance));
-    setVirtualBalance(newBalance);
-    setEditableBalance(newBalance.toFixed(2));
+    try {
+      const res = await fetch("/api/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "close-trade",
+          tradeId,
+          exitPrice,
+          hitType,
+          pnlPercentage,
+          pnlAmount,
+          closedAt: closedAtStr,
+        }),
+      });
 
-    setActiveTrade(null);
-    setTradesList(trades);
-    
-    // Trigger background AI Trade Audit report
-    fetch("/api/trade-audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trade }),
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json?.data) {
-          const freshSaved = localStorage.getItem("macromind-virtual-trades");
-          if (freshSaved) {
-            const freshTrades: VirtualTrade[] = JSON.parse(freshSaved);
-            const freshIndex = freshTrades.findIndex((t) => t.id === trade.id);
-            if (freshIndex !== -1) {
-              freshTrades[freshIndex].postmortem = json.data.review;
-              freshTrades[freshIndex].lesson = json.data.lesson;
-              localStorage.setItem("macromind-virtual-trades", JSON.stringify(freshTrades));
-              setTradesList(freshTrades);
-            }
-          }
+      if (res.ok) {
+        const nextBalance = virtualBalance + pnlAmount;
+        setVirtualBalance(nextBalance);
+        setEditableBalance(nextBalance.toFixed(2));
+
+        const closedTrade: VirtualTrade = {
+          ...targetTrade,
+          status: "closed",
+          exitPrice,
+          pnlPercentage,
+          pnlAmount,
+          closedAt: closedAtStr,
+        };
+
+        if (targetTrade.symbol === symbol) {
+          setActiveTrade(null);
         }
-      })
-      .catch((err) => console.error("Error executing background review:", err));
 
-    // Alert user
-    alert(`Virtual Trade Closed! PnL: ${trade.pnlAmount >= 0 ? "+" : ""}$${trade.pnlAmount.toFixed(2)} (${trade.pnlPercentage.toFixed(2)}%) · [${hitType}]`);
-  }, [riskPercent]);
+        // Trigger background AI Trade Audit report
+        fetch("/api/trade-audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trade: closedTrade }),
+        })
+          .then((res) => res.json())
+          .then((json) => {
+            if (json?.data) {
+              setTradesList((prev) =>
+                prev.map((t) =>
+                  t.id === tradeId
+                    ? {
+                        ...t,
+                        status: "closed",
+                        exitPrice,
+                        pnlPercentage,
+                        pnlAmount,
+                        closedAt: closedAtStr,
+                        postmortem: json.data.review,
+                        lesson: json.data.lesson,
+                      }
+                    : t
+                )
+              );
+            }
+          })
+          .catch((err) => console.error("Error executing background review:", err));
+
+        setTradesList((prev) =>
+          prev.map((t) =>
+            t.id === tradeId
+              ? { ...t, status: "closed", exitPrice, pnlPercentage, pnlAmount, closedAt: closedAtStr }
+              : t
+          )
+        );
+
+        alert(`Virtual Trade Closed! PnL: ${pnlAmount >= 0 ? "+" : ""}$${pnlAmount.toFixed(2)} (${pnlPercentage.toFixed(2)}%) · [${hitType}]`);
+      }
+    } catch (err) {
+      console.error("Failed to close trade:", err);
+    }
+  }, [virtualBalance, symbol, tradesList, riskPercent]);
 
   // Live PnL Tick calculation for active open trade (compounding risk on current balance)
   const activeTradePnL = useMemo(() => {
@@ -568,6 +665,20 @@ export function TradeAssistantDashboard() {
   return (
     <PageShell title="AI Virtual Trading Desk" label="Hybrid AI Market Intelligence Terminal">
       
+      {dailyDrawdownExceeded && (
+        <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-600 dark:text-red-400 flex items-center justify-between gap-4 animate-pulse select-none mb-6">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <p className="font-extrabold text-sm uppercase tracking-wide">Circuit Breaker Active</p>
+              <p className="text-xs font-semibold mt-0.5 opacity-90">
+                Max Daily Drawdown (3%) or 3 consecutive losses exceeded. Auto-Pilot has been disabled automatically for capital preservation.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Symbol selection & settings bar */}
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-2">
@@ -592,7 +703,11 @@ export function TradeAssistantDashboard() {
           <span className="text-xs font-bold text-slate-400 uppercase">Interval:</span>
           <select
             value={candlesInterval}
-            onChange={(e) => setCandlesInterval(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCandlesInterval(val);
+              localStorage.setItem("macromind-timeframe", val);
+            }}
             className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
           >
             <option value="5m">5 Minute</option>
@@ -718,7 +833,7 @@ export function TradeAssistantDashboard() {
               activePrice={asset?.price ?? 0}
               prediction={prediction}
               activeTrade={activeTrade || selectedHistoricalTrade}
-              isPredictionExecuted={prediction?.computedAt ? (typeof window !== "undefined" && localStorage.getItem("macromind-last-executed-prediction") === prediction.computedAt) : false}
+              isPredictionExecuted={prediction?.computedAt ? lastExecuted === prediction.computedAt : false}
               height={550}
             />
           )}
