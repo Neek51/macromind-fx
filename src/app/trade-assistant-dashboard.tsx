@@ -209,12 +209,11 @@ export function TradeAssistantDashboard() {
       return true;
     }
 
-    // Check for 3 consecutive losses
-    const sortedClosed = [...tradesList]
-      .filter((t) => t.status === "closed")
+    // Check for 3 consecutive losses today
+    const sortedClosedToday = [...closedToday]
       .sort((a, b) => new Date(b.closedAt || 0).getTime() - new Date(a.closedAt || 0).getTime());
-    if (sortedClosed.length >= 3) {
-      const last3 = sortedClosed.slice(0, 3);
+    if (sortedClosedToday.length >= 3) {
+      const last3 = sortedClosedToday.slice(0, 3);
       const allLoss = last3.every((t) => (t.pnlAmount ?? 0) <= 0);
       if (allLoss) return true;
     }
