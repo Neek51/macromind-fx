@@ -75,16 +75,60 @@ export async function getHistoricalCandles(symbol: string, interval: string, ran
   }
 
   let candles = [];
+  let prevClose: number | null = null;
+  
+  // Set threshold based on asset type to filter out outlier spike glitches
+  let maxPercentDeviation = 0.05; // 5% default (e.g. Gold Spot)
+  if (
+    symbol.includes("EUR") ||
+    symbol.includes("GBP") ||
+    symbol.includes("JPY") ||
+    symbol.includes("CHF") ||
+    symbol.includes("CAD") ||
+    symbol.includes("AUD")
+  ) {
+    maxPercentDeviation = 0.02; // 2% max deviation for forex currencies
+  } else if (symbol.includes("BTC") || symbol.includes("ETH")) {
+    maxPercentDeviation = 0.15; // 15% max deviation for crypto assets
+  }
+
   for (let i = 0; i < timestamps.length; i++) {
-    if (q.open[i] == null || q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
+    const o = q.open[i];
+    const h = q.high[i];
+    const l = q.low[i];
+    const c = q.close[i];
+    if (o == null || c == null || h == null || l == null) continue;
+
+    // 1. Filter out negative or zero anomalies
+    if (o <= 0 || h <= 0 || l <= 0 || c <= 0) continue;
+
+    // 2. Filter out extreme wick spikes
+    const bodyMax = Math.max(o, c);
+    const bodyMin = Math.min(o, c);
+    const wickHighRatio = (h - bodyMax) / bodyMax;
+    const wickLowRatio = (bodyMin - l) / bodyMin;
+
+    if (wickHighRatio > maxPercentDeviation || wickLowRatio > maxPercentDeviation) {
+      continue; // Discard bad print/glitch wicks
+    }
+
+    // 3. Filter out abnormal vertical teleport gaps from previous close
+    if (prevClose !== null) {
+      const priceJump = Math.abs(o - prevClose) / prevClose;
+      if (priceJump > maxPercentDeviation) {
+        continue; // Discard bad print candle gaps
+      }
+    }
+
     candles.push({
       time: timestamps[i],
-      open: q.open[i],
-      high: q.high[i],
-      low: q.low[i],
-      close: q.close[i],
+      open: o,
+      high: h,
+      low: l,
+      close: c,
       volume: q.volume[i] ?? 0,
     });
+    prevClose = c;
   }
 
   // 2. Perform resampling if requested (e.g. 1m -> 3m, or 1h -> 4h)

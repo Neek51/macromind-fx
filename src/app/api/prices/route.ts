@@ -39,7 +39,7 @@ async function fetchYahoo(symbol: string): Promise<YahooMeta | null> {
     if (!res.ok) return null;
     const json = await res.json();
     const meta = json?.chart?.result?.[0]?.meta as YahooMeta | undefined;
-    return meta?.regularMarketPrice ? meta : null;
+    return (meta?.regularMarketPrice && meta.regularMarketPrice > 0) ? meta : null;
   } catch {
     return null;
   }
