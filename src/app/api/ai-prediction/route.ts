@@ -6,6 +6,8 @@ import { getHistoricalCandles } from "../history/route";
 import { callAI, hasAIKey } from "../ai-provider";
 import { scrapeTelegramChannel } from "../../lib/sentiment-scraper";
 import { calcEMA } from "../../lib/backtest";
+import { readDb } from "../../lib/db";
+import type { VirtualTrade } from "../../types";
 
 const DISPLAY_NAMES: Record<string, string> = {
   "XAU/USD": "Gold Spot",
@@ -90,24 +92,21 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol") ?? "XAU/USD";
   const interval = searchParams.get("interval") ?? "15m";
-  const historyParam = searchParams.get("history");
-
-  // Format self-calibration context from history
+  // Format self-calibration context from server database history
   let selfCalibrationText = "";
-  if (historyParam) {
-    try {
-      const historyList = JSON.parse(historyParam);
-      if (Array.isArray(historyList) && historyList.length > 0) {
-        selfCalibrationText = `\nRECENT TRADES SELF-CALIBRATION HISTORY (Mistakes to avoid and rules to follow):
-${historyList.map((t: { symbol: string; direction: string; outcome: string; lesson?: string; postmortem?: string }, idx: number) => {
-  return `- Trade ${idx + 1} (${t.symbol} ${t.direction.toUpperCase()}): Outcome = ${t.outcome.toUpperCase()}. Lesson = "${t.lesson ?? "None"}". Postmortem = "${t.postmortem ?? "None"}".`;
+  try {
+    const db = readDb();
+    const closed = db.trades.filter((t: VirtualTrade) => t.status === "closed").slice(-5);
+    if (closed.length > 0) {
+      selfCalibrationText = `\nRECENT TRADES SELF-CALIBRATION HISTORY (Mistakes to avoid and rules to follow):
+${closed.map((t: VirtualTrade, idx: number) => {
+  return `- Trade ${idx + 1} (${t.symbol} ${t.direction.toUpperCase()}): Outcome = ${(t.pnlAmount ?? 0) > 0 ? "WIN" : "LOSS"}. Lesson = "${t.lesson ?? "None"}". Postmortem = "${t.postmortem ?? "None"}".`;
 }).join("\n")}
 Ensure your new suggested trade entry coordinates, SL/TP positions, and direction do not repeat these mistakes. Adapt your checklist rules accordingly.
 `;
-      }
-    } catch (err) {
-      console.error("Failed to parse history self-calibration parameter:", err);
     }
+  } catch (err) {
+    console.error("Failed to read history from server database:", err);
   }
 
   try {

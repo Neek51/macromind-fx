@@ -59,14 +59,7 @@ export function buildProviders(): ProviderConfig[] {
       url: process.env.AGENTROUTER_BASE_URL ?? "https://agentrouter.org/v1",
       model: process.env.AGENTROUTER_MODEL ?? "gpt-5.5",
     },
-    // 5 — Hugging Face (Public DeepSeek AWS Endpoint - Free & Fast fallback)
-    {
-      name: "Hugging Face (DeepSeek)",
-      key: "sk-hf-public-temp-key",
-      url: "https://q5dh1rfszfym23hj.us-east-2.aws.endpoints.huggingface.cloud/v1",
-      model: "deepseek-ai/DeepSeek-V4-Flash-0731",
-    },
-    // 6 — OpenCode Zen (Last resort fallback - DeepSeek free tier)
+    // 5 — OpenCode Zen (Last resort fallback - DeepSeek free tier)
     {
       name: "OpenCode Zen",
       key: process.env.OPENCODE_ZEN_API_KEY,

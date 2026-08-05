@@ -130,20 +130,7 @@ export function TradeAssistantDashboard() {
   const getAIPrediction = useCallback(async (currentSymbol: string, interval: string) => {
     setPredictionLoading(true);
     try {
-      const closed = tradesList.filter((t) => t.status === "closed").slice(-5);
-      let historyParam = "";
-      if (closed.length > 0) {
-        const historyContext = closed.map((t) => ({
-          symbol: t.symbol,
-          direction: t.direction,
-          outcome: (t.pnlAmount ?? 0) > 0 ? "win" : "loss",
-          postmortem: t.postmortem ?? "",
-          lesson: t.lesson ?? "",
-        }));
-        historyParam = `&history=${encodeURIComponent(JSON.stringify(historyContext))}`;
-      }
-
-      const res = await fetch(`/api/ai-prediction?symbol=${encodeURIComponent(currentSymbol)}&interval=${interval}${historyParam}`).catch(() => null);
+      const res = await fetch(`/api/ai-prediction?symbol=${encodeURIComponent(currentSymbol)}&interval=${interval}`).catch(() => null);
       if (res && res.ok) {
         const json = await res.json().catch(() => ({ data: null }));
         setPrediction(json.data ?? null);
@@ -153,7 +140,7 @@ export function TradeAssistantDashboard() {
     } finally {
       setPredictionLoading(false);
     }
-  }, [tradesList]);
+  }, []);
 
   // 4. Load Active Trade, Trades List, and balance states from Server DB
   const loadTradesData = useCallback(async (currentSymbol: string) => {
