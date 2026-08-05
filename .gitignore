@@ -50,3 +50,4 @@ todo.text
 # strategy alerts local storage
 strategy-config.json
 strategy-state.json
+/data
