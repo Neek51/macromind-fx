@@ -75,6 +75,7 @@ export function TradeAssistantDashboard() {
   const [sentinelFeed, setSentinelFeed] = useState<SentinelItem[]>([]);
   const [sentinelLoading, setSentinelLoading] = useState(true);
   const [lastExecuted, setLastExecuted] = useState("");
+  const [storageMode, setStorageMode] = useState<"server" | "local">("server");
 
   // Manual Risk Planner inputs (kept for manual calculations if desired)
   const [accountSize, setAccountSize] = useState("1000");
@@ -142,26 +143,69 @@ export function TradeAssistantDashboard() {
     }
   }, []);
 
-  // 4. Load Active Trade, Trades List, and balance states from Server DB
+  // Local storage fallback loader (used if server database is read-only or unreachable)
+  const fallbackToLocalStorage = useCallback((currentSymbol: string) => {
+    setStorageMode("local");
+    console.warn("[Trades Storage] Server-side DB read failed or read-only filesystem. Falling back to local browser storage.");
+    
+    const saved = localStorage.getItem("macromind-virtual-trades");
+    let trades: VirtualTrade[] = [];
+    if (saved) {
+      try {
+        trades = JSON.parse(saved);
+        setTradesList(trades);
+        const openTrade = trades.find(t => t.symbol === currentSymbol && t.status === "open");
+        setActiveTrade(openTrade ?? null);
+      } catch {
+        setTradesList([]);
+        setActiveTrade(null);
+      }
+    } else {
+      setTradesList([]);
+      setActiveTrade(null);
+    }
+
+    const savedBalance = localStorage.getItem("macromind-virtual-balance");
+    if (savedBalance) {
+      setVirtualBalance(Number(savedBalance));
+      setEditableBalance(savedBalance);
+    } else {
+      setVirtualBalance(10000);
+      setEditableBalance("10000");
+    }
+
+    const savedAutoPilot = localStorage.getItem("macromind-autopilot");
+    setAutoPilot(savedAutoPilot === "true");
+    
+    const savedLast = localStorage.getItem("macromind-last-executed-prediction") || "";
+    setLastExecuted(savedLast);
+  }, []);
+
+  // 4. Load Active Trade, Trades List, and balance states from Server DB with local fallback
   const loadTradesData = useCallback(async (currentSymbol: string) => {
     try {
       const res = await fetch("/api/trades").catch(() => null);
-      if (!res || !res.ok) return;
-      const json = await res.json().catch(() => null);
-      if (json && json.success && json.data) {
-        const { trades, balance, autoPilot: apState, lastExecutedPrediction } = json.data;
-        setTradesList(trades);
-        const openTrade = trades.find((t: VirtualTrade) => t.symbol === currentSymbol && t.status === "open");
-        setActiveTrade(openTrade ?? null);
-        setVirtualBalance(balance);
-        setEditableBalance(String(balance));
-        setAutoPilot(apState);
-        setLastExecuted(lastExecutedPrediction || "");
+      if (res && res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json && json.success && json.data) {
+          const { trades, balance, autoPilot: apState, lastExecutedPrediction } = json.data;
+          setTradesList(trades);
+          const openTrade = trades.find((t: VirtualTrade) => t.symbol === currentSymbol && t.status === "open");
+          setActiveTrade(openTrade ?? null);
+          setVirtualBalance(balance);
+          setEditableBalance(String(balance));
+          setAutoPilot(apState);
+          setLastExecuted(lastExecutedPrediction || "");
+          setStorageMode("server");
+          return;
+        }
       }
+      fallbackToLocalStorage(currentSymbol);
     } catch (err) {
-      console.error("Failed to sync trades data from server:", err);
+      console.warn("Failed to sync trades data from server, falling back to local:", err);
+      fallbackToLocalStorage(currentSymbol);
     }
-  }, []);
+  }, [fallbackToLocalStorage]);
 
   // Calculate dynamic trading statistics based on closed trades
   const stats = useMemo(() => {
@@ -244,6 +288,17 @@ export function TradeAssistantDashboard() {
   // Reset Virtual Account Capital & Trades History
   const handleResetAccount = async () => {
     const cleanBalance = Number(editableBalance) || 10000;
+    if (storageMode === "local") {
+      localStorage.setItem("macromind-virtual-balance", String(cleanBalance));
+      localStorage.setItem("macromind-virtual-trades", JSON.stringify([]));
+      setVirtualBalance(cleanBalance);
+      setEditableBalance(String(cleanBalance));
+      setActiveTrade(null);
+      setTradesList([]);
+      alert(`Virtual account reset successfully in local storage with capital: $${cleanBalance}`);
+      return;
+    }
+
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
@@ -256,15 +311,38 @@ export function TradeAssistantDashboard() {
         setActiveTrade(null);
         setTradesList([]);
         alert(`Virtual account reset successfully with capital: $${cleanBalance}`);
+      } else {
+        setStorageMode("local");
+        localStorage.setItem("macromind-virtual-balance", String(cleanBalance));
+        localStorage.setItem("macromind-virtual-trades", JSON.stringify([]));
+        setVirtualBalance(cleanBalance);
+        setEditableBalance(String(cleanBalance));
+        setActiveTrade(null);
+        setTradesList([]);
+        alert(`Virtual account reset successfully (Local Storage Fallback) with capital: $${cleanBalance}`);
       }
     } catch (err) {
       console.error("Failed to reset account:", err);
+      setStorageMode("local");
+      localStorage.setItem("macromind-virtual-balance", String(cleanBalance));
+      localStorage.setItem("macromind-virtual-trades", JSON.stringify([]));
+      setVirtualBalance(cleanBalance);
+      setEditableBalance(String(cleanBalance));
+      setActiveTrade(null);
+      setTradesList([]);
+      alert(`Virtual account reset successfully (Local Storage Fallback) with capital: $${cleanBalance}`);
     }
   };
 
   // Toggle Auto-Pilot execution state
   const handleToggleAutoPilot = async () => {
     const nextState = !autoPilot;
+    if (storageMode === "local") {
+      setAutoPilot(nextState);
+      localStorage.setItem("macromind-autopilot", String(nextState));
+      return;
+    }
+
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
@@ -273,9 +351,17 @@ export function TradeAssistantDashboard() {
       });
       if (res.ok) {
         setAutoPilot(nextState);
+      } else {
+        console.warn("[Trades Storage] Autopilot write failed. Reverting to local storage.");
+        setStorageMode("local");
+        setAutoPilot(nextState);
+        localStorage.setItem("macromind-autopilot", String(nextState));
       }
     } catch (err) {
       console.error("Failed to toggle autopilot:", err);
+      setStorageMode("local");
+      setAutoPilot(nextState);
+      localStorage.setItem("macromind-autopilot", String(nextState));
     }
   };
 
@@ -459,6 +545,20 @@ export function TradeAssistantDashboard() {
       lots: computedLots,
     };
 
+    if (storageMode === "local") {
+      const saved = localStorage.getItem("macromind-virtual-trades");
+      const trades = saved ? JSON.parse(saved) : [];
+      trades.push(newTrade);
+      localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
+      setActiveTrade(newTrade);
+      setTradesList(trades);
+      if (prediction.computedAt) {
+        setLastExecuted(prediction.computedAt);
+        localStorage.setItem("macromind-last-executed-prediction", prediction.computedAt);
+      }
+      return;
+    }
+
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
@@ -477,11 +577,24 @@ export function TradeAssistantDashboard() {
             body: JSON.stringify({ action: "update-last-executed", computedAt: prediction.computedAt }),
           }).catch(() => null);
         }
+      } else {
+        throw new Error("Server write failed");
       }
     } catch (err) {
-      console.error("Failed to execute trade:", err);
+      console.warn("Failed to execute trade on server, falling back to local storage:", err);
+      const saved = localStorage.getItem("macromind-virtual-trades");
+      const trades = saved ? JSON.parse(saved) : [];
+      trades.push(newTrade);
+      localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
+      setActiveTrade(newTrade);
+      setTradesList(trades);
+      if (prediction.computedAt) {
+        setLastExecuted(prediction.computedAt);
+        localStorage.setItem("macromind-last-executed-prediction", prediction.computedAt);
+      }
+      setStorageMode("local");
     }
-  }, [prediction, symbol, asset, isMarketClosed, candlesInterval, virtualBalance, riskPercent]);
+  }, [prediction, symbol, asset, isMarketClosed, candlesInterval, virtualBalance, riskPercent, storageMode]);
 
   // AI Auto-Pilot automated execution loop trigger (only executes when setupChecks pass)
   useEffect(() => {
@@ -513,6 +626,62 @@ export function TradeAssistantDashboard() {
     const pnlAmount = pnlR * (virtualBalance * tradeRiskPercent / 100);
 
     const closedAtStr = new Date().toISOString();
+
+    if (storageMode === "local") {
+      const saved = localStorage.getItem("macromind-virtual-trades");
+      if (saved) {
+        const trades: VirtualTrade[] = JSON.parse(saved);
+        const index = trades.findIndex(t => t.id === tradeId);
+        if (index !== -1) {
+          const trade = trades[index];
+          trade.status = "closed";
+          trade.exitPrice = exitPrice;
+          trade.closedAt = closedAtStr;
+          trade.pnlPercentage = pnlPercentage;
+          trade.pnlAmount = pnlAmount;
+
+          trades[index] = trade;
+          localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
+
+          const nextBalance = virtualBalance + pnlAmount;
+          localStorage.setItem("macromind-virtual-balance", String(nextBalance));
+          setVirtualBalance(nextBalance);
+          setEditableBalance(nextBalance.toFixed(2));
+
+          if (targetTrade.symbol === symbol) {
+            setActiveTrade(null);
+          }
+
+          // Trigger background AI Trade Audit report
+          fetch("/api/trade-audit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trade }),
+          })
+            .then((res) => res.json())
+            .then((json) => {
+              if (json?.data) {
+                const freshSaved = localStorage.getItem("macromind-virtual-trades");
+                if (freshSaved) {
+                  const freshTrades: VirtualTrade[] = JSON.parse(freshSaved);
+                  const freshIndex = freshTrades.findIndex((t) => t.id === trade.id);
+                  if (freshIndex !== -1) {
+                    freshTrades[freshIndex].postmortem = json.data.review;
+                    freshTrades[freshIndex].lesson = json.data.lesson;
+                    localStorage.setItem("macromind-virtual-trades", JSON.stringify(freshTrades));
+                    setTradesList(freshTrades);
+                  }
+                }
+              }
+            })
+            .catch((err) => console.error("Error executing background review:", err));
+
+          setTradesList(trades);
+          alert(`Virtual Trade Closed (Local Storage)! PnL: ${pnlAmount >= 0 ? "+" : ""}$${pnlAmount.toFixed(2)} (${pnlPercentage.toFixed(2)}%) · [${hitType}]`);
+        }
+      }
+      return;
+    }
 
     try {
       const res = await fetch("/api/trades", {
@@ -585,11 +754,41 @@ export function TradeAssistantDashboard() {
         );
 
         alert(`Virtual Trade Closed! PnL: ${pnlAmount >= 0 ? "+" : ""}$${pnlAmount.toFixed(2)} (${pnlPercentage.toFixed(2)}%) · [${hitType}]`);
+      } else {
+        throw new Error("Server write failed");
       }
     } catch (err) {
-      console.error("Failed to close trade:", err);
+      console.warn("Failed to close trade on server, falling back to local storage:", err);
+      const saved = localStorage.getItem("macromind-virtual-trades");
+      if (saved) {
+        const trades: VirtualTrade[] = JSON.parse(saved);
+        const index = trades.findIndex(t => t.id === tradeId);
+        if (index !== -1) {
+          const trade = trades[index];
+          trade.status = "closed";
+          trade.exitPrice = exitPrice;
+          trade.closedAt = closedAtStr;
+          trade.pnlPercentage = pnlPercentage;
+          trade.pnlAmount = pnlAmount;
+
+          trades[index] = trade;
+          localStorage.setItem("macromind-virtual-trades", JSON.stringify(trades));
+
+          const nextBalance = virtualBalance + pnlAmount;
+          localStorage.setItem("macromind-virtual-balance", String(nextBalance));
+          setVirtualBalance(nextBalance);
+          setEditableBalance(nextBalance.toFixed(2));
+
+          if (targetTrade.symbol === symbol) {
+            setActiveTrade(null);
+          }
+          setTradesList(trades);
+          alert(`Virtual Trade Closed (Local Storage Fallback)! PnL: ${pnlAmount >= 0 ? "+" : ""}$${pnlAmount.toFixed(2)} (${pnlPercentage.toFixed(2)}%) · [${hitType}]`);
+        }
+      }
+      setStorageMode("local");
     }
-  }, [virtualBalance, symbol, tradesList, riskPercent]);
+  }, [virtualBalance, symbol, tradesList, riskPercent, storageMode]);
 
   // Live PnL Tick calculation for active open trade (compounding risk on current balance)
   const activeTradePnL = useMemo(() => {
