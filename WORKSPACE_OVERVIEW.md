@@ -392,6 +392,8 @@ The Calendar page clearly labels event sources and unavailable actual values. If
   - **Timeframe Selector Persistence**: Wrapped selector handlers to save selected timeframe values in `localStorage` to prevent resets on switches or reloads.
   - **Server-Side History Integration & Infinite Loop Re-render Fix (August 5, 2026)**: Decoupled the client-side `getAIPrediction` callback from the `tradesList` state dependency, removing the `history` query parameter from the client fetch request. Re-routed `/api/ai-prediction` to read closed trades context directly from the server database (`data/trades-db.json`), resolving an infinite React rendering loop that triggered hundreds of concurrent requests on load, flickered the loading indicator continuously, and hammered LLM provider API rate limits.
   - **AI Provider Router Cleanup**: Cleaned up `src/app/api/ai-provider.ts` by removing the retired Hugging Face DeepSeek AWS public endpoint.
+  - **Hybrid Storage Fallback Support**: Added dual-mode hybrid fallback support (`fallbackToLocalStorage`) across all virtual trade actions. If the backend `/api/trades` database write fails in read-only hosting environments (like Vercel), it reverts to the browser's `localStorage` to guarantee 100% button and order execution uptime.
+  - **Statistical Outlier Price Filter**: Integrated a mathematical outlier-cleansing filter inside the historical candles route (`/api/history`) that checks price change ratios, wick heights, and previous-close jumps to automatically discard corrupt outlier wicks (gaps/spikes) from Yahoo Finance, producing a smooth institutional chart.
 
 ### 2.9 TradingView Logo URLs
 
