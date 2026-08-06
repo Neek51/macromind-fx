@@ -394,6 +394,7 @@ The Calendar page clearly labels event sources and unavailable actual values. If
   - **AI Provider Router Cleanup**: Cleaned up `src/app/api/ai-provider.ts` by removing the retired Hugging Face DeepSeek AWS public endpoint.
   - **Hybrid Storage Fallback Support**: Added dual-mode hybrid fallback support (`fallbackToLocalStorage`) across all virtual trade actions. If the backend `/api/trades` database write fails in read-only hosting environments (like Vercel), it reverts to the browser's `localStorage` to guarantee 100% button and order execution uptime.
   - **Statistical Outlier Price Filter**: Integrated a mathematical outlier-cleansing filter inside the historical candles route (`/api/history`) that checks price change ratios, wick heights, and previous-close jumps to automatically discard corrupt outlier wicks (gaps/spikes) from Yahoo Finance, producing a smooth institutional chart.
+  - **Auto-Pilot Checklist Unlocking (August 6, 2026)**: Restructured the dashboard `setupChecks` array to bypass manual/interactive gates when `autoPilot` is enabled (ON). It now automatically passes the manual confirmation checkbox and neutral daily trend constraints, allowing the bot to place virtual trades autonomously.
 
 ### 2.9 TradingView Logo URLs
 
