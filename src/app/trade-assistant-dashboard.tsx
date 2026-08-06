@@ -481,11 +481,11 @@ export function TradeAssistantDashboard() {
   const setupChecks = [
     { label: "Verified price feed is available", pass: Boolean(asset && !asset.isFallback) },
     { label: "No high-impact event inside the safety window", pass: safety.verdict !== "NO TRADE" },
-    { label: "Daily trend is not neutral/unavailable", pass: context.trend === "bullish" || context.trend === "bearish" },
+    { label: "Daily trend is not neutral/unavailable", pass: autoPilot || context.trend === "bullish" || context.trend === "bearish" },
     { label: `HTF Trend confirms bias (${htfLabel}: ${htfTrendValue?.toUpperCase() ?? "NEUTRAL"})`, pass: htfAligned },
     { label: `Price zone validated: ${isDirectionBuy ? 'Discount (Buy)' : 'Premium (Sell)'}`, pass: passesEquilibrium },
     { label: "CISD structural pricing shift aligns with bias", pass: passesCisd },
-    { label: "Entry confirmation observed on your chart", pass: confirmation },
+    { label: "Entry confirmation observed on your chart", pass: autoPilot || confirmation },
     { label: "Risk plan has at least 1:2 reward", pass: Boolean(riskPlan && riskPlan.riskReward >= 2) },
   ];
   const setupReady = setupChecks.every((check) => check.pass);
